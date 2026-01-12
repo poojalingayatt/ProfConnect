@@ -1,25 +1,27 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { students, faculty, Student, Faculty } from '@/data/users';
+import { authApi, setToken, removeToken } from '@/api';
 
 type UserType = 'student' | 'faculty' | null;
 
 interface AuthUser {
-  id: number;
+  _id: string;
   name: string;
   email: string;
-  avatar: string;
-  type: UserType;
-  department: string;
+  avatarUrl?: string;
+  role: UserType;
+  department?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   userType: UserType;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => { success: boolean; message: string };
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  register: (name: string, email: string, password: string, role: 'student' | 'faculty') => Promise<{ success: boolean; message: string }>;
   logout: () => void;
-  getStudentData: () => Student | null;
-  getFacultyData: () => Faculty | null;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,80 +29,138 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userType, setUserType] = useState<UserType>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('profconnect_user');
-    const storedType = localStorage.getItem('profconnect_user_type');
-    
-    if (storedUser && storedType) {
-      setUser(JSON.parse(storedUser));
-      setUserType(storedType as UserType);
-    }
+    // Try to load user from stored data and verify token
+    const loadUser = async () => {
+      const storedUser = localStorage.getItem('profconnect_user');
+      const storedType = localStorage.getItem('profconnect_user_type');
+      const token = localStorage.getItem('profconnect_token');
+
+      if (storedUser && storedType && token) {
+        try {
+          // Verify token is still valid by fetching current user
+          const response = await authApi.me();
+          if (response.success) {
+            const userData = response.data;
+            const authUser: AuthUser = {
+              _id: userData._id || userData.id,
+              name: userData.name,
+              email: userData.email,
+              avatarUrl: userData.avatarUrl,
+              role: userData.role,
+              department: userData.department,
+              phone: userData.phone,
+            };
+            setUser(authUser);
+            setUserType(userData.role as UserType);
+            localStorage.setItem('profconnect_user', JSON.stringify(authUser));
+            localStorage.setItem('profconnect_user_type', userData.role);
+          }
+        } catch (error) {
+          // Token invalid, clear everything
+          logout();
+        }
+      }
+      setIsLoading(false);
+    };
+
+    loadUser();
   }, []);
 
-  const login = (email: string, password: string): { success: boolean; message: string } => {
-    const normalizedEmail = email.toLowerCase();
-    
-    // Check students
-    const student = students.find(
-      s => s.email.toLowerCase() === normalizedEmail && s.password === password
-    );
-    
-    if (student) {
-      const authUser: AuthUser = {
-        id: student.id,
-        name: student.name,
-        email: student.email,
-        avatar: student.avatar,
-        type: 'student',
-        department: student.department,
+  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await authApi.login({ email, password });
+
+      if (response.success && response.data.user) {
+        const userData = response.data.user;
+        const authUser: AuthUser = {
+          _id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          avatarUrl: userData.avatarUrl,
+          role: userData.role as UserType,
+          department: userData.department,
+        };
+        setUser(authUser);
+        setUserType(userData.role as UserType);
+        localStorage.setItem('profconnect_user', JSON.stringify(authUser));
+        localStorage.setItem('profconnect_user_type', userData.role);
+        return { success: true, message: 'Login successful!' };
+      }
+
+      return { success: false, message: 'Login failed' };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Invalid email or password'
       };
-      setUser(authUser);
-      setUserType('student');
-      localStorage.setItem('profconnect_user', JSON.stringify(authUser));
-      localStorage.setItem('profconnect_user_type', 'student');
-      return { success: true, message: 'Login successful!' };
     }
-    
-    // Check faculty
-    const facultyMember = faculty.find(
-      f => f.email.toLowerCase() === normalizedEmail && f.password === password
-    );
-    
-    if (facultyMember) {
-      const authUser: AuthUser = {
-        id: facultyMember.id,
-        name: facultyMember.name,
-        email: facultyMember.email,
-        avatar: facultyMember.avatar,
-        type: 'faculty',
-        department: facultyMember.department,
+  };
+
+  const register = async (name: string, email: string, password: string, role: 'student' | 'faculty'): Promise<{ success: boolean; message: string }> => {
+    try {
+      const response = await authApi.register({ name, email, password, role });
+
+      if (response.success && response.data.user) {
+        const userData = response.data.user;
+        const authUser: AuthUser = {
+          _id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          avatarUrl: userData.avatarUrl,
+          role: userData.role as UserType,
+          department: userData.department,
+        };
+        setUser(authUser);
+        setUserType(userData.role as UserType);
+        localStorage.setItem('profconnect_user', JSON.stringify(authUser));
+        localStorage.setItem('profconnect_user_type', userData.role);
+        return { success: true, message: 'Registration successful!' };
+      }
+
+      return { success: false, message: 'Registration failed' };
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Registration failed. Please try again.'
       };
-      setUser(authUser);
-      setUserType('faculty');
-      localStorage.setItem('profconnect_user', JSON.stringify(authUser));
-      localStorage.setItem('profconnect_user_type', 'faculty');
-      return { success: true, message: 'Login successful!' };
     }
-    
-    return { success: false, message: 'Invalid email or password' };
   };
 
   const logout = () => {
     setUser(null);
     setUserType(null);
+    removeToken();
     localStorage.removeItem('profconnect_user');
     localStorage.removeItem('profconnect_user_type');
   };
 
-  const getStudentData = (): Student | null => {
-    if (!user || userType !== 'student') return null;
-    return students.find(s => s.id === user.id) || null;
-  };
-
-  const getFacultyData = (): Faculty | null => {
-    if (!user || userType !== 'faculty') return null;
-    return faculty.find(f => f.id === user.id) || null;
+  const refreshUser = async () => {
+    try {
+      const response = await authApi.me();
+      if (response.success) {
+        const userData = response.data;
+        const authUser: AuthUser = {
+          _id: userData._id || userData.id,
+          name: userData.name,
+          email: userData.email,
+          avatarUrl: userData.avatarUrl,
+          role: userData.role,
+          department: userData.department,
+          phone: userData.phone,
+        };
+        setUser(authUser);
+        setUserType(userData.role as UserType);
+        localStorage.setItem('profconnect_user', JSON.stringify(authUser));
+        localStorage.setItem('profconnect_user_type', userData.role);
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
   };
 
   return (
@@ -109,10 +169,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         userType,
         isAuthenticated: !!user,
+        isLoading,
         login,
+        register,
         logout,
-        getStudentData,
-        getFacultyData,
+        refreshUser,
       }}
     >
       {children}

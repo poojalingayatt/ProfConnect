@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { faculty } from '@/data/users';
+import { appointmentsApi } from '@/api';
 import { Search, Filter, Star, MapPin, Heart, X, Calendar, Clock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,10 +28,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 const FindFaculty = () => {
-  const { getStudentData } = useAuth();
-  const studentData = getStudentData();
   const { toast } = useToast();
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
@@ -40,20 +39,21 @@ const FindFaculty = () => {
   const [selectedSlot, setSelectedSlot] = useState('');
   const [appointmentTitle, setAppointmentTitle] = useState('');
   const [appointmentDescription, setAppointmentDescription] = useState('');
-  const [followedFaculty, setFollowedFaculty] = useState<number[]>(studentData?.followedFaculty || []);
+  const [followedFaculty, setFollowedFaculty] = useState<number[]>([]);
+  const [isBooking, setIsBooking] = useState(false);
 
   const departments = ['all', ...new Set(faculty.map(f => f.department))];
 
   const filteredFaculty = useMemo(() => {
     return faculty.filter(f => {
-      const matchesSearch = 
+      const matchesSearch =
         f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         f.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
         f.specialization.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+
       const matchesDepartment = departmentFilter === 'all' || f.department === departmentFilter;
-      
-      const matchesAvailability = 
+
+      const matchesAvailability =
         availabilityFilter === 'all' ||
         (availabilityFilter === 'online' && f.isOnline) ||
         (availabilityFilter === 'available' && f.availability.length > 0);
@@ -74,17 +74,62 @@ const FindFaculty = () => {
     });
   };
 
-  const handleBookAppointment = () => {
-    toast({
-      title: 'Appointment Booked!',
-      description: `Your appointment with ${selectedFaculty?.name} has been requested.`,
-    });
-    setSelectedFaculty(null);
-    setBookingStep(0);
-    setSelectedDate('');
-    setSelectedSlot('');
-    setAppointmentTitle('');
-    setAppointmentDescription('');
+  const handleBookAppointment = async () => {
+    if (!selectedFaculty || !selectedDate || !selectedSlot || !appointmentTitle) {
+      toast({
+        variant: 'destructive',
+        description: 'Please fill in all required fields',
+      });
+      return;
+    }
+
+    try {
+      setIsBooking(true);
+
+      // Parse the time slot (e.g., "09:00 - 10:00")
+      const [startTime, endTime] = selectedSlot.split(' - ');
+
+      // Calculate duration in minutes
+      const start = new Date(`2000-01-01 ${startTime}`);
+      const end = new Date(`2000-01-01 ${endTime}`);
+      const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+
+      const appointmentData = {
+        facultyId: selectedFaculty.id.toString(), // Convert to string for API
+        title: appointmentTitle,
+        description: appointmentDescription,
+        date: selectedDate,
+        startTime: startTime,
+        endTime: endTime,
+        durationMinutes: durationMinutes,
+        location: selectedFaculty.officeLocation,
+      };
+
+      const response = await appointmentsApi.createAppointment(appointmentData);
+
+      if (response.success) {
+        toast({
+          title: 'Appointment Requested!',
+          description: `Your appointment with ${selectedFaculty?.name} has been sent for approval.`,
+        });
+
+        // Reset form
+        setSelectedFaculty(null);
+        setBookingStep(0);
+        setSelectedDate('');
+        setSelectedSlot('');
+        setAppointmentTitle('');
+        setAppointmentDescription('');
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Booking Failed',
+        description: error.response?.data?.message || 'Failed to create appointment',
+      });
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   const clearFilters = () => {
@@ -129,7 +174,7 @@ const FindFaculty = () => {
               className="pl-10"
             />
           </div>
-          
+
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="Department" />
@@ -179,14 +224,13 @@ const FindFaculty = () => {
                     className="absolute top-4 right-4 p-2 rounded-full bg-card/80 backdrop-blur-sm hover:bg-card transition-colors"
                   >
                     <Heart
-                      className={`h-5 w-5 transition-colors ${
-                        followedFaculty.includes(f.id)
-                          ? 'fill-destructive text-destructive'
-                          : 'text-muted-foreground'
-                      }`}
+                      className={`h-5 w-5 transition-colors ${followedFaculty.includes(f.id)
+                        ? 'fill-destructive text-destructive'
+                        : 'text-muted-foreground'
+                        }`}
                     />
                   </button>
-                  
+
                   <div className="flex items-center gap-4">
                     <Avatar className="h-16 w-16 border-2 border-card">
                       <AvatarImage src={f.avatar} />
@@ -377,11 +421,10 @@ const FindFaculty = () => {
                         <button
                           key={d.date}
                           onClick={() => { setSelectedDate(d.date); setBookingStep(2); }}
-                          className={`p-3 rounded-lg border text-center transition-colors ${
-                            selectedDate === d.date
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-card hover:bg-accent border-border'
-                          }`}
+                          className={`p-3 rounded-lg border text-center transition-colors ${selectedDate === d.date
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-card hover:bg-accent border-border'
+                            }`}
                         >
                           <p className="text-xs font-medium">{d.day}</p>
                           <p className="text-lg font-bold">{d.dayNum}</p>
@@ -409,11 +452,10 @@ const FindFaculty = () => {
                         <button
                           key={slot}
                           onClick={() => { setSelectedSlot(slot); setBookingStep(3); }}
-                          className={`px-4 py-2 rounded-lg border transition-colors ${
-                            selectedSlot === slot
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-card hover:bg-accent border-border'
-                          }`}
+                          className={`px-4 py-2 rounded-lg border transition-colors ${selectedSlot === slot
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-card hover:bg-accent border-border'
+                            }`}
                         >
                           {slot}
                         </button>
@@ -475,8 +517,12 @@ const FindFaculty = () => {
                         <Button variant="outline" onClick={() => setBookingStep(2)}>
                           Back
                         </Button>
-                        <Button className="flex-1" onClick={handleBookAppointment} disabled={!appointmentTitle}>
-                          Confirm Booking
+                        <Button
+                          className="flex-1"
+                          onClick={handleBookAppointment}
+                          disabled={!appointmentTitle || isBooking}
+                        >
+                          {isBooking ? 'Booking...' : 'Confirm Booking'}
                         </Button>
                       </div>
                     </div>

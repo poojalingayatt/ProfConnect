@@ -20,18 +20,18 @@ async function seed() {
   ]);
 
   const users = [
-    { name: "Student One", email: "student1@proffconnect.com", password: "Student@123", role: "student" },
-    { name: "Student Two", email: "student2@proffconnect.com", password: "Student@123", role: "student" },
-    { name: "Student Three", email: "student3@proffconnect.com", password: "Student@123", role: "student" },
-    { name: "Faculty One", email: "faculty1@proffconnect.com", password: "Faculty@123", role: "faculty" },
-    { name: "Faculty Two", email: "faculty2@proffconnect.com", password: "Faculty@123", role: "faculty" },
-    { name: "Faculty Three", email: "faculty3@proffconnect.com", password: "Faculty@123", role: "faculty" }
+    { name: "Aisha Patel", email: "student1@profconnect.com", password: "Student@123", role: "student", department: "Computer Science" },
+    { name: "Rohan Kumar", email: "student2@profconnect.com", password: "Student@123", role: "student", department: "Electronics" },
+    { name: "Priya Singh", email: "student3@profconnect.com", password: "Student@123", role: "student", department: "Mechanical Engineering" },
+    { name: "Prof. Rajesh Sharma", email: "faculty1@profconnect.com", password: "Faculty@123", role: "faculty", department: "Computer Science" },
+    { name: "Prof. Meera Verma", email: "faculty2@profconnect.com", password: "Faculty@123", role: "faculty", department: "Electronics" },
+    { name: "Prof. Arjun Malhotra", email: "faculty3@profconnect.com", password: "Faculty@123", role: "faculty", department: "Mechanical Engineering" }
   ];
 
   const created: any[] = [];
   for (const u of users) {
     const passwordHash = await hashPassword(u.password);
-    const doc = await UserModel.create({ name: u.name, email: u.email, passwordHash, role: u.role });
+    const doc = await UserModel.create({ name: u.name, email: u.email, passwordHash, role: u.role, department: u.department });
     created.push(doc);
   }
 

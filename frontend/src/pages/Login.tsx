@@ -15,7 +15,7 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -24,10 +24,7 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const result = login(email, password);
+    const result = await login(email, password);
     setIsLoading(false);
 
     if (result.success) {
@@ -35,7 +32,7 @@ const Login = () => {
         title: 'Welcome back!',
         description: result.message,
       });
-      
+
       // Redirect based on user type
       const userType = localStorage.getItem('profconnect_user_type');
       if (userType === 'faculty') {
@@ -202,7 +199,7 @@ const Login = () => {
               <span className="text-sm font-medium text-foreground">View demo credentials</span>
               {showCredentials ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
-            
+
             {showCredentials && (
               <div className="p-4 pt-0 border-t border-border bg-accent/20">
                 <div className="space-y-4">
@@ -240,7 +237,7 @@ const Login = () => {
       {/* Right Panel - Visual */}
       <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-primary via-primary/90 to-primary/80">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(0_0%_100%/0.1)_1px,transparent_1px),linear-gradient(to_bottom,hsl(0_0%_100%/0.1)_1px,transparent_1px)] bg-[size:64px_64px]" />
-        
+
         <div className="relative z-10 flex flex-col justify-center items-center p-12 text-center">
           <div className="max-w-md">
             <div className="w-20 h-20 rounded-2xl bg-primary-foreground/10 backdrop-blur-sm flex items-center justify-center mx-auto mb-8">

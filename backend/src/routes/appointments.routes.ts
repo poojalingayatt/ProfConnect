@@ -13,7 +13,9 @@ router.get("/:id", authMiddleware, ctrl.getAppointmentById);
 router.patch("/:id/accept", authMiddleware, roleMiddleware(["faculty"]), ctrl.acceptAppointment);
 router.patch("/:id/reject", authMiddleware, roleMiddleware(["faculty"]), ctrl.rejectAppointment);
 router.patch("/:id/reschedule", authMiddleware, roleMiddleware(["faculty"]), ctrl.rescheduleAppointment);
+router.patch("/:id/student-reschedule", authMiddleware, roleMiddleware(["student"]), ctrl.studentReschedule);
 router.patch("/:id/cancel", authMiddleware, ctrl.cancelAppointment);
 router.patch("/:id/complete", authMiddleware, roleMiddleware(["faculty"]), ctrl.completeAppointment);
+router.patch("/:id/notes", authMiddleware, ctrl.updateAppointmentNotes);
 
 export default router;

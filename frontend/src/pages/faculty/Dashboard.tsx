@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
-import { appointments } from '@/data/appointments';
-import { students } from '@/data/users';
-import { Calendar, Clock, Users, CheckCircle, ArrowRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { usersApi, appointmentsApi } from '@/api';
+import { Calendar, Clock, Users, CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,46 +11,98 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 
 const FacultyDashboard = () => {
-  const { user, getFacultyData } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const facultyData = getFacultyData();
+  const [stats, setStats] = useState<any>(null);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Get faculty's appointments
-  const facultyAppointments = appointments.filter(a => a.facultyId === user?.id);
-  const pendingAppointments = facultyAppointments.filter(a => a.status === 'pending');
-  const upcomingAppointments = facultyAppointments.filter(
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [statsRes, appointmentsRes] = await Promise.all([
+          usersApi.getStats(),
+          appointmentsApi.getMyAppointments()
+        ]);
+
+        if (statsRes.success) {
+          setStats(statsRes.data);
+        }
+
+        if (appointmentsRes.success) {
+          setAppointments(appointmentsRes.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const pendingAppointments = appointments.filter(a => a.status === 'pending');
+  const upcomingAppointments = appointments.filter(
     a => a.status === 'accepted' && new Date(a.date) >= new Date()
   );
-  const completedCount = facultyAppointments.filter(a => a.status === 'completed').length;
+  const completedCount = appointments.filter(a => a.status === 'completed').length;
 
-  // Get follower count
-  const followerCount = facultyData?.followerCount || 0;
-
-  const getStudentInfo = (studentId: number) => {
-    return students.find(s => s.id === studentId);
-  };
-
-  const handleAccept = (appointmentId: number) => {
-    toast({
-      title: 'Appointment Accepted',
-      description: 'The student has been notified.',
-    });
-  };
-
-  const handleReject = (appointmentId: number) => {
-    toast({
-      variant: 'destructive',
-      title: 'Appointment Rejected',
-      description: 'The student has been notified.',
-    });
-  };
-
-  // Today's appointments
   const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = facultyAppointments.filter(
-    a => a.date === today && a.status === 'accepted'
+  const todayAppointments = appointments.filter(
+    a => a.date.split('T')[0] === today && a.status === 'accepted'
   );
+
+  const handleAccept = async (appointmentId: string) => {
+    try {
+      await appointmentsApi.acceptAppointment(appointmentId);
+      toast({
+        title: 'Appointment Accepted',
+        description: 'The student has been notified.',
+      });
+      // Refresh appointments
+      const res = await appointmentsApi.getMyAppointments();
+      if (res.success) setAppointments(res.data);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to accept appointment.',
+      });
+    }
+  };
+
+  const handleReject = async (appointmentId: string) => {
+    try {
+      await appointmentsApi.rejectAppointment(appointmentId);
+      toast({
+        variant: 'destructive',
+        title: 'Appointment Rejected',
+        description: 'The student has been notified.',
+      });
+      // Refresh appointments
+      const res = await appointmentsApi.getMyAppointments();
+      if (res.success) setAppointments(res.data);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to reject appointment.',
+      });
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -70,7 +122,7 @@ const FacultyDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-warning">{pendingAppointments.length}</p>
+                  <p className="text-2xl font-bold text-warning">{stats?.pendingRequests || 0}</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
                   <Clock className="h-6 w-6 text-warning" />
@@ -98,7 +150,7 @@ const FacultyDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Followers</p>
-                  <p className="text-2xl font-bold text-foreground">{followerCount}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats?.followers || 0}</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
                   <Users className="h-6 w-6 text-destructive" />
@@ -148,18 +200,18 @@ const FacultyDashboard = () => {
                 ) : (
                   <div className="space-y-4">
                     {pendingAppointments.slice(0, 4).map(appointment => {
-                      const student = getStudentInfo(appointment.studentId);
+                      const studentData = appointment.studentId;
                       return (
                         <div
-                          key={appointment.id}
+                          key={appointment._id}
                           className="flex items-start gap-4 p-4 rounded-xl bg-warning/5 border border-warning/20"
                         >
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={student?.avatar} />
-                            <AvatarFallback>{student?.name?.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={studentData?.avatarUrl} />
+                            <AvatarFallback>{studentData?.name?.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground">{student?.name}</p>
+                            <p className="font-medium text-foreground">{studentData?.name}</p>
                             <p className="text-sm text-muted-foreground truncate">{appointment.title}</p>
                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
@@ -171,15 +223,15 @@ const FacultyDashboard = () => {
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {appointment.time}
+                                {appointment.startTime}
                               </span>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="success" onClick={() => handleAccept(appointment.id)}>
+                            <Button size="sm" variant="success" onClick={() => handleAccept(appointment._id)}>
                               Accept
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleReject(appointment.id)}>
+                            <Button size="sm" variant="outline" onClick={() => handleReject(appointment._id)}>
                               Reject
                             </Button>
                           </div>
@@ -207,13 +259,13 @@ const FacultyDashboard = () => {
                 ) : (
                   <div className="space-y-3">
                     {todayAppointments.map(appointment => {
-                      const student = getStudentInfo(appointment.studentId);
+                      const studentData = appointment.studentId;
                       return (
-                        <div key={appointment.id} className="flex items-center gap-3 p-3 rounded-lg bg-accent/50">
+                        <div key={appointment._id} className="flex items-center gap-3 p-3 rounded-lg bg-accent/50">
                           <div className="w-1 h-12 bg-primary rounded-full" />
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{appointment.time}</p>
-                            <p className="text-xs text-muted-foreground">{student?.name}</p>
+                            <p className="text-sm font-medium">{appointment.startTime}</p>
+                            <p className="text-xs text-muted-foreground">{studentData?.name}</p>
                             <p className="text-xs text-muted-foreground truncate">{appointment.title}</p>
                           </div>
                         </div>

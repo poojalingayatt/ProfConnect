@@ -8,7 +8,8 @@ const router = Router();
 // note: prefer restful path: /:facultyId
 router.post("/:facultyId", authMiddleware, roleMiddleware(["student"]), ctrl.followFaculty);
 router.delete("/:facultyId", authMiddleware, roleMiddleware(["student"]), ctrl.unfollowFaculty);
+router.get("/check/:facultyId", authMiddleware, roleMiddleware(["student"]), ctrl.checkFollowing);
 router.get("/me", authMiddleware, roleMiddleware(["student"]), ctrl.getMyFollows);
-router.get("/faculty/me", authMiddleware, roleMiddleware(["faculty"]), ctrl.getFollowers);
+router.get("/followers/me", authMiddleware, roleMiddleware(["faculty"]), ctrl.getFollowers);
 
 export default router;

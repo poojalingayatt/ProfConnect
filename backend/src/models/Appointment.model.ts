@@ -13,6 +13,7 @@ export interface IAppointment extends mongoose.Document {
   durationMinutes: number;
   location?: string;
   status: AppointmentStatus;
+  notes?: string;
   facultyResponseMessage?: string;
   cancelReason?: string;
   rescheduleFrom?: any;
@@ -30,6 +31,7 @@ const appointmentSchema = new mongoose.Schema<IAppointment>(
     durationMinutes: { type: Number, required: true },
     location: { type: String },
     status: { type: String, enum: ["pending", "accepted", "rejected", "cancelled", "completed"], default: "pending" },
+    notes: { type: String },
     facultyResponseMessage: { type: String },
     cancelReason: { type: String },
     rescheduleFrom: { type: mongoose.Schema.Types.Mixed }
