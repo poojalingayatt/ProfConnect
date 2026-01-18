@@ -1,396 +1,333 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, AlertTriangle, Download } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Camera, X } from 'lucide-react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
+import api from '@/api/auth';
 
 const StudentSettings = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState('');
-  
-  const [notifications, setNotifications] = useState({
-    emailAppointments: true,
-    inApp: true,
-    reminder24h: true,
-    reminder1h: true,
-    announcements: true,
-  });
+  const [department, setDepartment] = useState('');
+  const [studentId, setStudentId] = useState('');
+  const [semester, setSemester] = useState('');
+  const [bio, setBio] = useState('');
+  const [skills, setSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
 
-  const [privacy, setPrivacy] = useState({
-    showProfile: true,
-    showEmail: false,
-  });
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await api.get('/profile');
+        if (response.data.success) {
+          const profile = response.data.data;
+          setPhone(profile.phone || '');
+          setDepartment(profile.department || '');
+          setStudentId(profile.studentId || '');
+          setSemester(profile.semester?.toString() || '');
+          setBio(profile.bio || '');
+          setSkills(profile.skills || []);
+          setAvatarUrl(profile.avatarUrl || '');
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+      }
+    };
+    loadProfile();
+  }, []);
 
-  const [passwords, setPasswords] = useState({
-    current: '',
-    new: '',
-    confirm: '',
-  });
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check if file is an image
+      if (!file.type.startsWith('image/')) {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid file type',
+          description: 'Please select an image file',
+        });
+        return;
+      }
 
-  const handleSaveProfile = () => {
-    toast({
-      title: 'Profile updated',
-      description: 'Your profile has been saved successfully.',
-    });
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          variant: 'destructive',
+          title: 'File too large',
+          description: 'Please select an image smaller than 5MB',
+        });
+        return;
+      }
+
+      // Read file and convert to base64 or upload to server
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarUrl(reader.result as string);
+        toast({
+          title: 'Image selected',
+          description: 'Click "Save Changes" to update your profile picture',
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleSaveNotifications = () => {
-    toast({
-      title: 'Notification preferences updated',
-      description: 'Your notification settings have been saved.',
-    });
+  const handleCameraClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleSavePrivacy = () => {
-    toast({
-      title: 'Privacy settings updated',
-      description: 'Your privacy settings have been saved.',
-    });
+  const handleAddSkill = () => {
+    if (skillInput.trim() && !skills.includes(skillInput.trim())) {
+      setSkills([...skills, skillInput.trim()]);
+      setSkillInput('');
+    }
   };
 
-  const handleChangePassword = () => {
-    if (passwords.new !== passwords.confirm) {
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setSkills(skills.filter(s => s !== skillToRemove));
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const response = await api.put('/profile', {
+        phone,
+        department,
+        studentId,
+        semester: semester ? parseInt(semester) : undefined,
+        bio,
+        skills,
+        avatarUrl,
+      });
+
+      if (response.data.success) {
+        toast({
+          title: 'Profile updated',
+          description: 'Your changes have been saved.',
+        });
+      }
+    } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Passwords do not match',
-        description: 'Please make sure your new passwords match.',
+        title: 'Update failed',
+        description: error.response?.data?.message || 'Could not update profile',
       });
-      return;
     }
-    if (passwords.new.length < 8) {
-      toast({
-        variant: 'destructive',
-        title: 'Password too short',
-        description: 'Password must be at least 8 characters.',
-      });
-      return;
-    }
-    toast({
-      title: 'Password changed',
-      description: 'Your password has been updated successfully.',
-    });
-    setPasswords({ current: '', new: '', confirm: '' });
-  };
-
-  const handleDownloadData = () => {
-    toast({
-      title: 'Download started',
-      description: 'Your data is being prepared for download.',
-    });
-  };
-
-  const handleDeactivateAccount = () => {
-    logout();
-    navigate('/');
-    toast({
-      title: 'Account deactivated',
-      description: 'Your account has been deactivated.',
-    });
   };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 animate-fade-in max-w-4xl">
+      <div className="space-y-6 animate-fade-in max-w-5xl">
         {/* Header */}
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground mt-1">Manage your account preferences.</p>
+          <h1 className="font-display text-2xl font-semibold text-foreground">Settings</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Manage your account preferences</p>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-4">
+        <Tabs defaultValue="profile" className="space-y-5">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="privacy">Privacy</TabsTrigger>
-            <TabsTrigger value="account">Account</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
-          <TabsContent value="profile">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>Update your personal details.</CardDescription>
+          <TabsContent value="profile" className="space-y-0">
+            <Card className="border-border/40">
+              <CardHeader className="pb-5 px-6">
+                <CardTitle className="text-lg font-medium">Profile Information</CardTitle>
+                <CardDescription className="text-sm">Update your personal details</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Avatar */}
-                <div className="flex items-center gap-6">
-                  <div className="relative">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={user?.avatar} />
-                      <AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <button className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
-                      <Camera className="h-4 w-4" />
-                    </button>
+              <CardContent className="px-6 pb-6">
+                <div className="grid md:grid-cols-[200px_1fr] gap-6">
+                  {/* Left Column - Avatar & Basic Info */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="relative w-32 h-32 mx-auto">
+                        <Avatar className="w-32 h-32 border-2 border-border">
+                          <AvatarImage src={avatarUrl || user?.avatarUrl} />
+                          <AvatarFallback className="text-3xl">{user?.name?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <button
+                          onClick={handleCameraClick}
+                          type="button"
+                          className="absolute bottom-1 right-1 p-2 bg-background border border-border rounded-full hover:bg-accent transition-colors shadow-sm"
+                        >
+                          <Camera className="h-4 w-4 text-foreground" />
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                      <Input
+                        value={name}
+                        disabled
+                        className="bg-muted/50 h-9 text-sm cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                      <Input
+                        value={user?.email || ''}
+                        disabled
+                        className="bg-muted/50 h-9 text-sm cursor-not-allowed"
+                      />
+                      <p className="text-xs text-muted-foreground">Cannot be changed</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">{user?.name}</p>
-                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+
+                  {/* Right Column - Editable Fields */}
+                  <div className="space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="studentId" className="text-sm font-medium">Student ID</Label>
+                        <Input
+                          id="studentId"
+                          placeholder="e.g., 2024CS001"
+                          value={studentId}
+                          onChange={(e) => setStudentId(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="department" className="text-sm font-medium">Department</Label>
+                        <Select value={department} onValueChange={setDepartment}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['Computer Science', 'Electronics', 'Mechanical Engineering', 'Civil Engineering', 'Electrical Engineering', 'Information Technology', 'Chemical Engineering', 'Biotechnology'].map((dept) => (
+                              <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="semester" className="text-sm font-medium">Semester</Label>
+                      <Select value={semester} onValueChange={setSemester}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                            <SelectItem key={sem} value={sem.toString()}>Semester {sem}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone" className="text-sm font-medium">Phone Number(optional)</Label>
+                      <Input
+                        id="phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Skills</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={skillInput}
+                          onChange={(e) => setSkillInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                          className="h-9"
+                        />
+                        <Button type="button" onClick={handleAddSkill} size="sm" variant="outline" className="px-4">
+                          Add
+                        </Button>
+                      </div>
+                      {skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {skills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-secondary text-sm"
+                            >
+                              {skill}
+                              <button onClick={() => handleRemoveSkill(skill)} className="hover:text-destructive">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bio" className="text-sm font-medium">About</Label>
+                      <Textarea
+                        id="bio"
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        maxLength={300}
+                        rows={2}
+                        className="resize-none text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <Button onClick={handleSaveProfile} size="sm">Save Changes</Button>
+                    </div>
                   </div>
                 </div>
-
-                {/* Form */}
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={user?.email || ''}
-                      disabled
-                      className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      placeholder="+1 (555) 000-0000"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <Button onClick={handleSaveProfile}>Save Changes</Button>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Notifications Tab */}
           <TabsContent value="notifications">
-            <Card>
+            <Card className="border-border/40">
               <CardHeader>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Choose how you want to be notified.</CardDescription>
+                <CardTitle className="text-lg font-medium">Notification Preferences</CardTitle>
+                <CardDescription className="text-sm">Manage how you receive notifications</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Email notifications</p>
-                      <p className="text-sm text-muted-foreground">Receive email updates for appointment changes</p>
-                    </div>
-                    <Switch
-                      checked={notifications.emailAppointments}
-                      onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, emailAppointments: checked }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">In-app notifications</p>
-                      <p className="text-sm text-muted-foreground">Show notifications within the app</p>
-                    </div>
-                    <Switch
-                      checked={notifications.inApp}
-                      onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, inApp: checked }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">24-hour reminder</p>
-                      <p className="text-sm text-muted-foreground">Get reminded 24 hours before appointments</p>
-                    </div>
-                    <Switch
-                      checked={notifications.reminder24h}
-                      onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, reminder24h: checked }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">1-hour reminder</p>
-                      <p className="text-sm text-muted-foreground">Get reminded 1 hour before appointments</p>
-                    </div>
-                    <Switch
-                      checked={notifications.reminder1h}
-                      onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, reminder1h: checked }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Faculty announcements</p>
-                      <p className="text-sm text-muted-foreground">Notifications from followed faculty</p>
-                    </div>
-                    <Switch
-                      checked={notifications.announcements}
-                      onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, announcements: checked }))}
-                    />
-                  </div>
-                </div>
-
-                <Button onClick={handleSaveNotifications}>Save Preferences</Button>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Notification settings coming soon.</p>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Privacy Tab */}
           <TabsContent value="privacy">
-            <Card>
+            <Card className="border-border/40">
               <CardHeader>
-                <CardTitle>Privacy Settings</CardTitle>
-                <CardDescription>Control your privacy preferences.</CardDescription>
+                <CardTitle className="text-lg font-medium">Privacy Settings</CardTitle>
+                <CardDescription className="text-sm">Control your privacy preferences</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Show profile to faculty</p>
-                      <p className="text-sm text-muted-foreground">Allow faculty to view your profile</p>
-                    </div>
-                    <Switch
-                      checked={privacy.showProfile}
-                      onCheckedChange={(checked) => setPrivacy(prev => ({ ...prev, showProfile: checked }))}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Show email on profile</p>
-                      <p className="text-sm text-muted-foreground">Display your email address publicly</p>
-                    </div>
-                    <Switch
-                      checked={privacy.showEmail}
-                      onCheckedChange={(checked) => setPrivacy(prev => ({ ...prev, showEmail: checked }))}
-                    />
-                  </div>
-                </div>
-
-                <Button onClick={handleSavePrivacy}>Save Settings</Button>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Privacy settings coming soon.</p>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Account Tab */}
-          <TabsContent value="account">
-            <div className="space-y-6">
-              {/* Change Password */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Change Password</CardTitle>
-                  <CardDescription>Update your account password.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="current-password">Current Password</Label>
-                    <Input
-                      id="current-password"
-                      type="password"
-                      value={passwords.current}
-                      onChange={(e) => setPasswords(prev => ({ ...prev, current: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="new-password">New Password</Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      value={passwords.new}
-                      onChange={(e) => setPasswords(prev => ({ ...prev, new: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      value={passwords.confirm}
-                      onChange={(e) => setPasswords(prev => ({ ...prev, confirm: e.target.value }))}
-                    />
-                  </div>
-                  <Button onClick={handleChangePassword}>Change Password</Button>
-                </CardContent>
-              </Card>
-
-              {/* Data & Account */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Data & Account</CardTitle>
-                  <CardDescription>Manage your data and account status.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-border">
-                    <div>
-                      <p className="font-medium text-foreground">Download my data</p>
-                      <p className="text-sm text-muted-foreground">Get a copy of all your data</p>
-                    </div>
-                    <Button variant="outline" onClick={handleDownloadData}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/50 bg-destructive/5">
-                    <div>
-                      <p className="font-medium text-foreground">Deactivate account</p>
-                      <p className="text-sm text-muted-foreground">This will disable your account</p>
-                    </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground">
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          Deactivate
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will deactivate your account. You can contact support to reactivate it later.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleDeactivateAccount}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Deactivate Account
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
         </Tabs>
       </div>

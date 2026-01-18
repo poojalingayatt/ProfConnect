@@ -71,15 +71,14 @@ const Register = () => {
     if (result.success) {
       toast({
         title: 'Registration Successful!',
-        description: result.message,
+        description: 'Please check your email to verify your account.',
+        duration: 5000,
       });
 
-      // Redirect based on role
-      if (role === 'faculty') {
-        navigate('/faculty/dashboard');
-      } else {
-        navigate('/student/dashboard');
-      }
+      // Redirect to login with a message
+      setTimeout(() => {
+        navigate('/login?registered=true');
+      }, 2000);
     } else {
       toast({
         variant: 'destructive',
@@ -90,18 +89,18 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Back button */}
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate('/')}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </Button>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 flex items-center justify-center p-4 relative">
+      {/* Back button - Top Left */}
+      <Button
+        variant="ghost"
+        className="absolute top-4 left-4"
+        onClick={() => navigate('/')}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Home
+      </Button>
 
+      <div className="w-full max-w-md">
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-14 h-14 rounded-xl bg-primary flex items-center justify-center">
@@ -216,17 +215,10 @@ const Register = () => {
                 Sign in
               </Link>
             </div>
-
-            {/* Demo notice */}
-            <div className="mt-6 p-4 rounded-lg bg-accent/50 border border-border/50">
-              <p className="text-xs text-muted-foreground text-center">
-                <strong>Demo Mode:</strong> Registration is simulated. Use the existing demo credentials to explore the app.
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </div >
   );
 };
 

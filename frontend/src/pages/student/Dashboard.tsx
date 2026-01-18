@@ -1,6 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import { useState, useEffect } from 'react';
-import { usersApi, appointmentsApi, followsApi } from '@/api';
+import { usersApi, appointmentsApi, followsApi, facultyApi } from '@/api';
 import { Calendar, Clock, Heart, CheckCircle, ArrowRight, MapPin, Star, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,15 +14,17 @@ const StudentDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [statsRes, appointmentsRes] = await Promise.all([
+        const [statsRes, appointmentsRes, facultyRes] = await Promise.all([
           usersApi.getStats(),
-          appointmentsApi.getMyAppointments()
+          appointmentsApi.getMyAppointments(),
+          facultyApi.listFaculty()
         ]);
 
         if (statsRes.success) {
@@ -31,6 +33,11 @@ const StudentDashboard = () => {
 
         if (appointmentsRes.success) {
           setAppointments(appointmentsRes.data);
+        }
+
+        if (facultyRes.success) {
+          const uniqueDepts = [...new Set(facultyRes.data.map((f: any) => f.department as string))];
+          setDepartments(uniqueDepts.filter((d): d is string => d != null).slice(0, 3));
         }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
@@ -223,7 +230,7 @@ const StudentDashboard = () => {
                   Search faculty by name or department...
                 </Button>
                 <div className="flex flex-wrap gap-2 mt-4">
-                  {['Computer Science', 'Electronics', 'Mechanical'].map(dept => (
+                  {departments.map(dept => (
                     <Badge
                       key={dept}
                       variant="secondary"

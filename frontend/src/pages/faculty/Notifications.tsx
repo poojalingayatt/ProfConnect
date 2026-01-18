@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { notifications as allNotifications, Notification } from '@/data/appointments';
 import { Bell, Check, CheckCheck, Calendar, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,33 +8,42 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
+interface Notification {
+  id: number;
+  userId: number;
+  userType: 'student' | 'faculty';
+  type: 'appointment_accepted' | 'appointment_rejected' | 'appointment_cancelled' | 'appointment_reminder' | 'new_follower' | 'new_announcement' | 'appointment_request';
+  message: string;
+  timestamp: string;
+  read: boolean;
+}
+
 const FacultyNotifications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'followers'>('all');
-  
-  // Get user's notifications
-  const userNotifications = allNotifications.filter(
-    n => n.userId === user?.id && n.userType === 'faculty'
-  );
-  
-  const [readIds, setReadIds] = useState<number[]>(
-    userNotifications.filter(n => n.read).map(n => n.id)
-  );
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [readIds, setReadIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    // Fetch notifications from API
+    // For now using empty array until backend implements notifications endpoint
+    setNotifications([]);
+  }, []);
 
   const isRead = (id: number) => readIds.includes(id);
-  const unreadCount = userNotifications.filter(n => !isRead(n.id)).length;
+  const unreadCount = notifications.filter(n => !isRead(n.id)).length;
 
   const getFilteredNotifications = () => {
-    let filtered = userNotifications;
-    
+    let filtered = notifications;
+
     if (activeTab === 'requests') {
       filtered = filtered.filter(n => n.type === 'appointment_request');
     } else if (activeTab === 'followers') {
       filtered = filtered.filter(n => n.type === 'new_follower');
     }
-    
-    return filtered.sort((a, b) => 
+
+    return filtered.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   };
@@ -47,7 +55,7 @@ const FacultyNotifications = () => {
   };
 
   const markAllAsRead = () => {
-    setReadIds(userNotifications.map(n => n.id));
+    setReadIds(notifications.map(n => n.id));
     toast({ description: 'All notifications marked as read' });
   };
 
@@ -77,7 +85,7 @@ const FacultyNotifications = () => {
     const now = new Date();
     const date = new Date(timestamp);
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
@@ -98,7 +106,7 @@ const FacultyNotifications = () => {
               {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
             </p>
           </div>
-          
+
           {unreadCount > 0 && (
             <Button variant="outline" onClick={markAllAsRead}>
               <CheckCheck className="h-4 w-4 mr-2" />
@@ -121,7 +129,7 @@ const FacultyNotifications = () => {
                 <Bell className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
                 <h3 className="text-xl font-medium text-foreground mb-2">No notifications</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  {activeTab === 'all' 
+                  {activeTab === 'all'
                     ? "You're all caught up! New notifications will appear here."
                     : `No ${activeTab} notifications to show.`}
                 </p>
@@ -131,9 +139,9 @@ const FacultyNotifications = () => {
                 {filteredNotifications.map(notification => {
                   const Icon = getNotificationIcon(notification.type);
                   const read = isRead(notification.id);
-                  
+
                   return (
-                    <Card 
+                    <Card
                       key={notification.id}
                       className={cn(
                         'transition-all cursor-pointer hover:shadow-md',
@@ -149,7 +157,7 @@ const FacultyNotifications = () => {
                           )}>
                             <Icon className="h-5 w-5" />
                           </div>
-                          
+
                           <div className="flex-1 min-w-0">
                             <p className={cn(
                               'text-sm',
@@ -161,7 +169,7 @@ const FacultyNotifications = () => {
                               {formatTimeAgo(notification.timestamp)}
                             </p>
                           </div>
-                          
+
                           {!read && (
                             <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
                           )}

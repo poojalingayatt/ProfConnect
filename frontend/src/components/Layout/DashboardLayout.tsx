@@ -1,6 +1,7 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { notificationsApi } from '@/api';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -27,7 +28,6 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { notifications } from '@/data/appointments';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -38,6 +38,25 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Fetch notifications from backend
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await notificationsApi.getNotifications();
+        if (response.success) {
+          setNotifications(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      }
+    };
+
+    if (user) {
+      fetchNotifications();
+    }
+  }, [user]);
 
   const studentNavItems = [
     { icon: Home, label: 'Dashboard', path: '/student/dashboard' },
@@ -59,9 +78,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const navItems = userType === 'faculty' ? facultyNavItems : studentNavItems;
 
-  const userNotifications = notifications.filter(
-    n => n.userId === user?.id && n.userType === userType && !n.read
-  );
+  // Filter unread notifications (API already returns user-specific notifications)
+  const userNotifications = notifications.filter(n => !n.read);
 
   const handleLogout = () => {
     logout();
@@ -131,7 +149,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 px-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.avatar} alt={user?.name} />
+                    <AvatarImage src={user?.avatarUrl} alt={user?.name} />
                     <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <span className="hidden md:block text-sm font-medium">{user?.name}</span>
