@@ -31,7 +31,3 @@ frontend/src/components/ui/Unconfirmed 461040.crdownload
 # Build / dependency folders for frontend
 frontend/node_modules
 frontend/dist
-
-# Backend env should not be tracked
-backend/.env
-backend/.env.local
