@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { appointmentsApi, facultyApi, followsApi } from '@/api';
-import { Search, Filter, Star, MapPin, Heart, X, Calendar, Clock, Check, Loader2 } from 'lucide-react';
+import { faculty } from '@/data/users';
+import { appointmentsApi } from '@/api';
+import { Search, Filter, Star, MapPin, Heart, X, Calendar, Clock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,35 +33,14 @@ const FindFaculty = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
-  const [selectedFaculty, setSelectedFaculty] = useState<any>(null);
+  const [selectedFaculty, setSelectedFaculty] = useState<typeof faculty[0] | null>(null);
   const [bookingStep, setBookingStep] = useState(0);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
   const [appointmentTitle, setAppointmentTitle] = useState('');
   const [appointmentDescription, setAppointmentDescription] = useState('');
-  const [followedFaculty, setFollowedFaculty] = useState<string[]>([]);
+  const [followedFaculty, setFollowedFaculty] = useState<number[]>([]);
   const [isBooking, setIsBooking] = useState(false);
-  const [faculty, setFaculty] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch faculty on mount
-  useEffect(() => {
-    const fetchFaculty = async () => {
-      try {
-        setLoading(true);
-        const response = await facultyApi.listFaculty();
-        if (response.success) {
-          setFaculty(response.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch faculty:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFaculty();
-  }, []);
 
   const departments = ['all', ...new Set(faculty.map(f => f.department))];
 
@@ -68,36 +48,30 @@ const FindFaculty = () => {
     return faculty.filter(f => {
       const matchesSearch =
         f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        f.department.toLowerCase().includes(searchQuery.toLowerCase());
+        f.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.specialization.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesDepartment = departmentFilter === 'all' || f.department === departmentFilter;
 
       const matchesAvailability =
         availabilityFilter === 'all' ||
-        (availabilityFilter === 'online' && f.profile?.isOnline) ||
-        (availabilityFilter === 'available' && f.profile?.availability?.length > 0);
+        (availabilityFilter === 'online' && f.isOnline) ||
+        (availabilityFilter === 'available' && f.availability.length > 0);
 
       return matchesSearch && matchesDepartment && matchesAvailability;
     });
-  }, [faculty, searchQuery, departmentFilter, availabilityFilter]);
+  }, [searchQuery, departmentFilter, availabilityFilter]);
 
-  const toggleFollow = async (facultyId: string) => {
-    try {
-      if (followedFaculty.includes(facultyId)) {
-        await followsApi.unfollowFaculty(facultyId);
-        setFollowedFaculty(prev => prev.filter(id => id !== facultyId));
+  const toggleFollow = (facultyId: number) => {
+    setFollowedFaculty(prev => {
+      if (prev.includes(facultyId)) {
         toast({ description: 'Unfollowed successfully' });
+        return prev.filter(id => id !== facultyId);
       } else {
-        await followsApi.followFaculty(facultyId);
-        setFollowedFaculty(prev => [...prev, facultyId]);
         toast({ description: 'Now following this faculty' });
+        return [...prev, facultyId];
       }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        description: 'Failed to update follow status'
-      });
-    }
+    });
   };
 
   const handleBookAppointment = async () => {
@@ -121,14 +95,14 @@ const FindFaculty = () => {
       const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
 
       const appointmentData = {
-        facultyId: selectedFaculty._id, // Use MongoDB _id
+        facultyId: selectedFaculty.id.toString(), // Convert to string for API
         title: appointmentTitle,
         description: appointmentDescription,
         date: selectedDate,
         startTime: startTime,
         endTime: endTime,
         durationMinutes: durationMinutes,
-        location: selectedFaculty.profile?.officeLocation || 'TBD',
+        location: selectedFaculty.officeLocation,
       };
 
       const response = await appointmentsApi.createAppointment(appointmentData);
@@ -238,115 +212,101 @@ const FindFaculty = () => {
           Showing {filteredFaculty.length} faculty member{filteredFaculty.length !== 1 ? 's' : ''}
         </p>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        {/* Faculty Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredFaculty.map(f => (
+            <Card key={f.id} className="hover-lift overflow-hidden">
+              <CardContent className="p-0">
+                {/* Header with avatar */}
+                <div className="relative p-6 pb-4 bg-gradient-to-br from-primary/5 to-accent/10">
+                  <button
+                    onClick={() => toggleFollow(f.id)}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-card/80 backdrop-blur-sm hover:bg-card transition-colors"
+                  >
+                    <Heart
+                      className={`h-5 w-5 transition-colors ${followedFaculty.includes(f.id)
+                        ? 'fill-destructive text-destructive'
+                        : 'text-muted-foreground'
+                        }`}
+                    />
+                  </button>
+
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16 border-2 border-card">
+                      <AvatarImage src={f.avatar} />
+                      <AvatarFallback className="text-lg">{f.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-display font-semibold text-foreground">{f.name}</h3>
+                      <p className="text-sm text-muted-foreground">{f.department}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`inline-flex items-center gap-1 text-xs ${f.isOnline ? 'text-success' : 'text-muted-foreground'}`}>
+                          <span className={`w-2 h-2 rounded-full ${f.isOnline ? 'bg-success' : 'bg-muted'}`} />
+                          {f.isOnline ? 'Online' : 'Offline'}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Star className="h-3 w-3 fill-warning text-warning" />
+                          {f.rating}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6 pt-4 space-y-4">
+                  {/* Specializations */}
+                  <div className="flex flex-wrap gap-2">
+                    {f.specialization.slice(0, 3).map(spec => (
+                      <Badge key={spec} variant="secondary" className="text-xs">
+                        {spec}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    {f.officeLocation}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedFaculty(f);
+                        setBookingStep(0);
+                      }}
+                    >
+                      View Profile
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedFaculty(f);
+                        setBookingStep(1);
+                      }}
+                    >
+                      Book
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {filteredFaculty.length === 0 && (
+          <div className="text-center py-12">
+            <Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium text-foreground">No faculty found</h3>
+            <p className="text-muted-foreground mt-1">Try adjusting your search or filters</p>
+            <Button variant="outline" className="mt-4" onClick={clearFilters}>
+              Clear Filters
+            </Button>
           </div>
-        ) : (
-          <>
-            {/* Faculty Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredFaculty.map(f => (
-                <Card key={f._id} className="hover-lift overflow-hidden">
-                  <CardContent className="p-0">
-                    {/* Header with avatar */}
-                    <div className="relative p-6 pb-4 bg-gradient-to-br from-primary/5 to-accent/10">
-                      <button
-                        onClick={() => toggleFollow(f._id)}
-                        className="absolute top-4 right-4 p-2 rounded-full bg-card/80 backdrop-blur-sm hover:bg-card transition-colors"
-                      >
-                        <Heart
-                          className={`h-5 w-5 transition-colors ${followedFaculty.includes(f._id)
-                            ? 'fill-destructive text-destructive'
-                            : 'text-muted-foreground'
-                            }`}
-                        />
-                      </button>
-
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-16 w-16 border-2 border-card">
-                          <AvatarImage src={f.avatarUrl} />
-                          <AvatarFallback className="text-lg">{f.name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-display font-semibold text-foreground">{f.name}</h3>
-                          <p className="text-sm text-muted-foreground">{f.department}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`inline-flex items-center gap-1 text-xs ${f.profile?.isOnline ? 'text-success' : 'text-muted-foreground'}`}>
-                              <span className={`w-2 h-2 rounded-full ${f.profile?.isOnline ? 'bg-success' : 'bg-muted'}`} />
-                              {f.profile?.isOnline ? 'Online' : 'Offline'}
-                            </span>
-                            {f.profile?.rating && (
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Star className="h-3 w-3 fill-warning text-warning" />
-                                {f.profile.rating}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Body */}
-                    <div className="p-6 pt-4 space-y-4">
-                      {/* Specializations */}
-                      {f.profile?.specialization && f.profile.specialization.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {f.profile.specialization.slice(0, 3).map((spec: string) => (
-                            <Badge key={spec} variant="secondary" className="text-xs">
-                              {spec}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Location */}
-                      {f.profile?.officeLocation && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          {f.profile.officeLocation}
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex gap-3 pt-2">
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => {
-                            setSelectedFaculty(f);
-                            setBookingStep(0);
-                          }}
-                        >
-                          View Profile
-                        </Button>
-                        <Button
-                          className="flex-1"
-                          onClick={() => {
-                            setSelectedFaculty(f);
-                            setBookingStep(1);
-                          }}
-                        >
-                          Book
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {filteredFaculty.length === 0 && (
-              <div className="text-center py-12">
-                <Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium text-foreground">No faculty found</h3>
-                <p className="text-muted-foreground mt-1">Try adjusting your search or filters</p>
-                <Button variant="outline" className="mt-4" onClick={clearFilters}>
-                  Clear Filters
-                </Button>
-              </div>
-            )}
-          </>
         )}
 
         {/* Faculty Profile / Booking Modal */}

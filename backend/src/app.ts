@@ -10,7 +10,6 @@ import availabilityRoutes from "./routes/availability.routes";
 import appointmentsRoutes from "./routes/appointments.routes";
 import followsRoutes from "./routes/follows.routes";
 import notificationsRoutes from "./routes/notifications.routes";
-import profileRoutes from "./routes/profile.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
 import { CORS_ORIGIN, NODE_ENV } from "./config/env";
 
@@ -19,8 +18,8 @@ const app = express();
 app.use(helmet());
 app.use(morgan(NODE_ENV === "development" ? "dev" : "combined"));
 app.use(cors({ origin: CORS_ORIGIN }));
-app.use(express.json({ limit: '10mb' })); // Increased limit for base64 image uploads
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json());
+
 app.get("/api/health", (req, res) => res.json({ success: true, data: "ok" }));
 
 app.use("/api/auth", authRoutes);
@@ -30,7 +29,6 @@ app.use("/api/availability", availabilityRoutes);
 app.use("/api/appointments", appointmentsRoutes);
 app.use("/api/follows", followsRoutes);
 app.use("/api/notifications", notificationsRoutes);
-app.use("/api/profile", profileRoutes);
 
 app.use(errorMiddleware);
 

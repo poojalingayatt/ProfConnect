@@ -18,7 +18,7 @@ interface AuthContextType {
   userType: UserType;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string; profileCompleted?: boolean }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   register: (name: string, email: string, password: string, role: 'student' | 'faculty') => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadUser();
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; message: string; profileCompleted?: boolean }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
       const response = await authApi.login({ email, password });
 
@@ -87,13 +87,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUserType(userData.role as UserType);
         localStorage.setItem('profconnect_user', JSON.stringify(authUser));
         localStorage.setItem('profconnect_user_type', userData.role);
-
-        // Return profileCompleted status
-        return {
-          success: true,
-          message: 'Login successful!',
-          profileCompleted: userData.profileCompleted
-        };
+        return { success: true, message: 'Login successful!' };
       }
 
       return { success: false, message: 'Login failed' };
@@ -110,12 +104,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await authApi.register({ name, email, password, role });
 
-      // Backend now returns only a message, no user object (email verification required first)
-      if (response.success) {
-        return {
-          success: true,
-          message: response.data.message || 'Registration successful! Please check your email to verify your account.'
+      if (response.success && response.data.user) {
+        const userData = response.data.user;
+        const authUser: AuthUser = {
+          _id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          avatarUrl: userData.avatarUrl,
+          role: userData.role as UserType,
+          department: userData.department,
         };
+        setUser(authUser);
+        setUserType(userData.role as UserType);
+        localStorage.setItem('profconnect_user', JSON.stringify(authUser));
+        localStorage.setItem('profconnect_user_type', userData.role);
+        return { success: true, message: 'Registration successful!' };
       }
 
       return { success: false, message: 'Registration failed' };
