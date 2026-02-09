@@ -27,10 +27,7 @@ export async function getMyAppointments(req: Request & { user?: any }, res: Resp
   const filter: any = {};
   if (user.role === "student") filter.studentId = user._id;
   if (user.role === "faculty") filter.facultyId = user._id;
-  const list = await AppointmentModel.find(filter)
-    .populate("studentId", "-passwordHash")
-    .populate("facultyId", "-passwordHash")
-    .sort({ date: -1 });
+  const list = await AppointmentModel.find(filter).sort({ date: -1 });
   return res.json(success(list));
 }
 
@@ -103,34 +100,5 @@ export async function completeAppointment(req: Request & { user?: any }, res: Re
   appt.status = "completed";
   await appt.save();
   await NotificationModel.create({ userId: appt.studentId, type: "appointment_completed", message: `Appointment marked completed` });
-  return res.json(success(appt));
-}
-
-export async function updateAppointmentNotes(req: Request & { user?: any }, res: Response) {
-  const { notes } = req.body as any;
-  const appt = await AppointmentModel.findById(req.params.id);
-  if (!appt) return res.status(404).json(failure("Not found"));
-  const user = req.user;
-  if (user.role === "student" && !appt.studentId.equals(user._id)) return res.status(403).json(failure("Forbidden"));
-  if (user.role === "faculty" && !appt.facultyId.equals(user._id)) return res.status(403).json(failure("Forbidden"));
-  appt.notes = notes;
-  await appt.save();
-  return res.json(success(appt));
-}
-
-export async function studentReschedule(req: Request & { user?: any }, res: Response) {
-  const { date, startTime, endTime, reason } = req.body as any;
-  const appt = await AppointmentModel.findById(req.params.id);
-  if (!appt) return res.status(404).json(failure("Not found"));
-  if (!appt.studentId.equals(req.user._id)) return res.status(403).json(failure("Forbidden"));
-  if (await isOverlap(appt.facultyId, new Date(date), startTime, endTime, appt._id)) return res.status(400).json(failure("Time conflict"));
-  appt.rescheduleFrom = { date: appt.date, startTime: appt.startTime, endTime: appt.endTime };
-  appt.date = new Date(date);
-  appt.startTime = startTime;
-  appt.endTime = endTime;
-  appt.status = "pending";
-  appt.notes = appt.notes ? `${appt.notes}\n[Student requested reschedule: ${reason}]` : `[Student requested reschedule: ${reason}]`;
-  await appt.save();
-  await NotificationModel.create({ userId: appt.facultyId, type: "appointment_rescheduled", message: `Student requested to reschedule appointment` });
   return res.json(success(appt));
 }

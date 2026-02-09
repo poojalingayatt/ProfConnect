@@ -13,13 +13,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { register } = useAuth();
-
+  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,17 +29,17 @@ const Register = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
+    
     if (!name.trim()) {
       newErrors.name = 'Name is required';
     }
-
+    
     if (!email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = 'Please enter a valid email';
     }
-
+    
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (password.length < 8) {
@@ -49,44 +47,31 @@ const Register = () => {
     } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
       newErrors.password = 'Password must include uppercase, lowercase, and number';
     }
-
+    
     if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!validateForm()) return;
-
+    
     setIsLoading(true);
-
-    const result = await register(name, email, password, role);
-    setIsLoading(false);
-
-    if (result.success) {
-      toast({
-        title: 'Registration Successful!',
-        description: result.message,
-      });
-
-      // Redirect based on role
-      if (role === 'faculty') {
-        navigate('/faculty/dashboard');
-      } else {
-        navigate('/student/dashboard');
-      }
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Registration Failed',
-        description: result.message,
-      });
-    }
+    
+    // Simulate registration delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    toast({
+      title: 'Registration Successful!',
+      description: 'Please login with your credentials.',
+    });
+    
+    navigate('/login');
   };
 
   return (
