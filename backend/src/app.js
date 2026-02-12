@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const { errorHandler } = require('./middleware/errorHandler');
 const { CORS_ORIGIN } = require('./config/env');
 const authRoutes = require('./routes/auth.routes');
+const usersRoutes = require('./routes/users.routes');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
 
 // 404 handler
 app.use((req, res) => {

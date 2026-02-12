@@ -11,7 +11,7 @@ function authenticate(req, _res, next) {
     const header = req.headers.authorization || '';
     const [type, token] = header.split(' ');
 
-    if (type !== 'Bearer' || !token) {
+    if (!type || type.toLowerCase() !== 'bearer' || !token) {
       return next(createHttpError(401, 'Missing or invalid Authorization header'));
     }
 
@@ -23,7 +23,11 @@ function authenticate(req, _res, next) {
     };
 
     return next();
-  } catch (_err) {
+  } catch (err) {
+    if (err && err.statusCode && err.statusCode >= 500) {
+      return next(err);
+    }
+
     return next(createHttpError(401, 'Invalid or expired token'));
   }
 }
