@@ -30,6 +30,9 @@ model User {
   following Follow[] @relation("StudentFollows")
   followers Follow[] @relation("FacultyFollowers")
 
+  availability AvailabilityRule[]
+
+
   @@index([email])
   @@index([role])
 }
@@ -58,5 +61,16 @@ model Follow {
   @@unique([studentId, facultyId])
 
   @@index([studentId])
+  @@index([facultyId])
+}
+
+model AvailabilityRule {
+  id        Int      @id @default(autoincrement())
+  facultyId Int
+  day       String
+  slots     String[]
+
+  faculty   User     @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
   @@index([facultyId])
 }

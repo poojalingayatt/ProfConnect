@@ -34,3 +34,24 @@ exports.updatePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
   newPassword: Joi.string().min(6).required(),
 });
+
+/**
+ * AVAILABILITY UPDATE VALIDATION
+ * Expects full weekly availability array
+ */
+exports.updateAvailabilitySchema = Joi.object({
+  availability: Joi.array().items(
+    Joi.object({
+      day: Joi.string().required(),
+      slots: Joi.array().items(Joi.string()).required(),
+    })
+  ).required(),
+});
+
+
+/**
+ * ONLINE STATUS UPDATE VALIDATION
+ */
+exports.updateStatusSchema = Joi.object({
+  isOnline: Joi.boolean().required(),
+});

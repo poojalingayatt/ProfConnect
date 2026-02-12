@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth.routes');
 const usersRoutes = require('./routes/users.routes');
 const facultyRoutes = require('./routes/faculty.routes');
 const followsRoutes = require('./routes/follows.routes');
+const availabilityRoutes = require('./routes/availability.routes');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/faculty', facultyRoutes);
 app.use('/api/follows', followsRoutes);
+app.use('/api/availability', availabilityRoutes);
 
 // 404 handler
 app.use((req, res) => {
