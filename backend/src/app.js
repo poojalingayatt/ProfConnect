@@ -6,6 +6,8 @@ const { errorHandler } = require('./middleware/errorHandler');
 const { CORS_ORIGIN } = require('./config/env');
 const authRoutes = require('./routes/auth.routes');
 const usersRoutes = require('./routes/users.routes');
+const facultyRoutes = require('./routes/faculty.routes');
+const followsRoutes = require('./routes/follows.routes');
 
 const app = express();
 
@@ -26,15 +28,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Health check route
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-  });
-});
+app.get('/health', (req, res) => { res.json({status: 'OK',timestamp: new Date().toISOString() });});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/faculty', facultyRoutes);
+app.use('/api/follows', followsRoutes);
 
 // 404 handler
 app.use((req, res) => {

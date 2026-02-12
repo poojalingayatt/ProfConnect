@@ -23,6 +23,40 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // One-to-one relation for faculty profile
+  facultyProfile FacultyProfile?
+
+  // Follow relationships
+  following Follow[] @relation("StudentFollows")
+  followers Follow[] @relation("FacultyFollowers")
+
   @@index([email])
   @@index([role])
+}
+
+model FacultyProfile {
+  userId        Int   @id
+  user          User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bio           String?
+  officeLocation String?
+  isOnline      Boolean @default(false)
+
+  @@index([userId])
+}
+
+model Follow {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  facultyId Int
+  createdAt DateTime @default(now())
+
+  student   User @relation("StudentFollows", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty   User @relation("FacultyFollowers", fields: [facultyId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate follows
+  @@unique([studentId, facultyId])
+
+  @@index([studentId])
+  @@index([facultyId])
 }
