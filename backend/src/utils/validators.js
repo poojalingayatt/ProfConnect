@@ -55,3 +55,14 @@ exports.updateAvailabilitySchema = Joi.object({
 exports.updateStatusSchema = Joi.object({
   isOnline: Joi.boolean().required(),
 });
+
+/**
+ * APPOINTMENT CREATION VALIDATION
+ */
+exports.createAppointmentSchema = Joi.object({
+  facultyId: Joi.number().integer().required(),
+  date: Joi.date().iso().required(),
+  slot: Joi.string().required(),
+  title: Joi.string().min(3).required(),
+  description: Joi.string().optional(),
+});
