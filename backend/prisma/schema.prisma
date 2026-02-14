@@ -33,6 +33,7 @@ model User {
   facultyAppointments Appointment[] @relation("FacultyAppointments")
 
   availability AvailabilityRule[]
+  notifications Notification[]
 
   @@index([email])
   @@index([role])
@@ -106,4 +107,26 @@ model Appointment {
   @@index([studentId])
   @@index([facultyId])
   @@index([date])
+}
+
+enum NotificationType {
+  APPOINTMENT_REQUEST
+  APPOINTMENT_ACCEPTED
+  APPOINTMENT_REJECTED
+  APPOINTMENT_CANCELLED
+}
+
+model Notification {
+  id        Int               @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean           @default(false)
+  createdAt DateTime          @default(now())
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
 }

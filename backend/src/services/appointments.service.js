@@ -10,7 +10,7 @@
  */
 
 const prisma = require('../config/database');
-
+const notificationsService = require('./notifications.service');
 
 /**
  * Create appointment
@@ -125,6 +125,16 @@ exports.updateStatus = async (user, appointmentId, status) => {
     where: { id: appointmentId },
     data: { status },
   });
+
+    // Notify student
+  await notificationsService.createNotification({
+  userId: appointment.studentId,
+  type: status === 'ACCEPTED'
+    ? 'APPOINTMENT_ACCEPTED'
+    : 'APPOINTMENT_REJECTED',
+  title: `Appointment ${status}`,
+  message: `Your appointment has been ${status.toLowerCase()}.`,
+});
 };
 
 
@@ -153,4 +163,24 @@ exports.cancelAppointment = async (user, appointmentId) => {
     where: { id: appointmentId },
     data: { status: 'CANCELLED' },
   });
+
+  const otherUserId =
+  user.id === appointment.studentId
+    ? appointment.facultyId
+    : appointment.studentId;
+
+await notificationsService.createNotification({
+  userId: otherUserId,
+  type: 'APPOINTMENT_CANCELLED',
+  title: 'Appointment Cancelled',
+  message: 'An appointment was cancelled.',
+});
 };
+
+// Notify faculty
+await notificationsService.createNotification({
+  userId: facultyId,
+  type: 'APPOINTMENT_REQUEST',
+  title: 'New Appointment Request',
+  message: `You have a new appointment request.`,
+});
