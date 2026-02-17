@@ -83,6 +83,7 @@ enum AppointmentStatus {
   REJECTED
   CANCELLED
   COMPLETED
+  RESCHEDULE_REQUESTED
 }
 
 model Appointment {
@@ -107,6 +108,9 @@ model Appointment {
   @@index([studentId])
   @@index([facultyId])
   @@index([date])
+
+  // THIS prevents double booking at DB level
+  @@unique([facultyId, date, slot])
 }
 
 enum NotificationType {

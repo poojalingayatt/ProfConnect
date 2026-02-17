@@ -66,3 +66,11 @@ exports.createAppointmentSchema = Joi.object({
   title: Joi.string().min(3).required(),
   description: Joi.string().optional(),
 });
+
+/**
+ * APPOINTMENT RESCHEDULE VALIDATION
+ */
+exports.rescheduleSchema = Joi.object({
+  date: Joi.date().iso().required(),
+  slot: Joi.string().required(),
+});

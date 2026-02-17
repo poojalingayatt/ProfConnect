@@ -74,3 +74,43 @@ exports.cancelAppointment = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.requestReschedule = async (req, res, next) => {
+  try {
+    const updated = await appointmentsService.requestReschedule(
+      req.user,
+      parseInt(req.params.id),
+      req.body
+    );
+
+    res.json({ appointment: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.approveReschedule = async (req, res, next) => {
+  try {
+    const updated = await appointmentsService.approveReschedule(
+      req.user,
+      parseInt(req.params.id)
+    );
+
+    res.json({ appointment: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.rejectReschedule = async (req, res, next) => {
+  try {
+    const updated = await appointmentsService.rejectReschedule(
+      req.user,
+      parseInt(req.params.id)
+    );
+
+    res.json({ appointment: updated });
+  } catch (error) {
+    next(error);
+  }
+};

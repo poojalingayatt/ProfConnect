@@ -9,7 +9,6 @@
 
 const prisma = require('../config/database');
 
-
 /**
  * Search faculty dynamically
  */
