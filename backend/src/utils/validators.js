@@ -74,3 +74,12 @@ exports.rescheduleSchema = Joi.object({
   date: Joi.date().iso().required(),
   slot: Joi.string().required(),
 });
+
+/**
+ * REVIEW VALIDATION
+ */
+exports.reviewSchema = Joi.object({
+  appointmentId: Joi.number().integer().required(),
+  rating: Joi.number().min(1).max(5).required(),
+  comment: Joi.string().allow('').optional(),
+});

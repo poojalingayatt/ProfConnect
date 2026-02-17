@@ -31,6 +31,8 @@ model User {
   followers Follow[] @relation("FacultyFollowers")
   studentAppointments Appointment[] @relation("StudentAppointments")
   facultyAppointments Appointment[] @relation("FacultyAppointments")
+  studentReviews Review[] @relation("StudentReviews")
+  facultyReviews Review[] @relation("FacultyReviews")
 
   availability AvailabilityRule[]
   notifications Notification[]
@@ -46,6 +48,9 @@ model FacultyProfile {
   bio           String?
   officeLocation String?
   isOnline      Boolean @default(false)
+
+  rating      Float  @default(0)
+  reviewCount Int    @default(0)
 
   @@index([userId])
 }
@@ -105,6 +110,8 @@ model Appointment {
   student     User @relation("StudentAppointments", fields: [studentId], references: [id], onDelete: Cascade)
   faculty     User @relation("FacultyAppointments", fields: [facultyId], references: [id], onDelete: Cascade)
 
+  review Review?
+  
   @@index([studentId])
   @@index([facultyId])
   @@index([date])
@@ -133,4 +140,22 @@ model Notification {
 
   @@index([userId])
   @@index([read])
+}
+
+model Review {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int      @unique
+  studentId     Int
+  facultyId     Int
+
+  rating        Int
+  comment       String?
+
+  createdAt     DateTime @default(now())
+
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  student       User        @relation("StudentReviews", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty       User        @relation("FacultyReviews", fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@index([facultyId])
 }

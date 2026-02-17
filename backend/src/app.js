@@ -12,6 +12,7 @@ const availabilityRoutes = require('./routes/availability.routes');
 const appointmentsRoutes = require('./routes/appointments.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
 const rateLimit = require('express-rate-limit');
+const reviewsRoutes = require('./routes/reviews.routes');
 
 const app = express();
 
@@ -58,6 +59,8 @@ app.use('/api/follows', followsRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reviews', reviewsRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
