@@ -27,7 +27,7 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { notifications } from '@/data/appointments';
+import { useNotifications } from '@/context/NotificationsContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -35,6 +35,7 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user, userType, logout } = useAuth();
+  const { getNotificationsFor, unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -59,9 +60,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const navItems = userType === 'faculty' ? facultyNavItems : studentNavItems;
 
-  const userNotifications = notifications.filter(
-    n => n.userId === user?.id && n.userType === userType && !n.read
-  );
+  const userNotifications = user && userType
+    ? getNotificationsFor(userType as 'student' | 'faculty', user.id).filter(n => !n.read)
+    : [];
+
+  const badgeCount = user && userType ? unreadCount : 0;
 
   const handleLogout = () => {
     logout();
@@ -99,9 +102,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {userNotifications.length > 0 && (
+                  {badgeCount > 0 && (
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                      {userNotifications.length}
+                      {badgeCount}
                     </span>
                   )}
                 </Button>

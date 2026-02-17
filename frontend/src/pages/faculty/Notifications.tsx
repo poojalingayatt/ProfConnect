@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { notifications as allNotifications, Notification } from '@/data/appointments';
-import { Bell, Check, CheckCheck, Calendar, UserPlus } from 'lucide-react';
+import { Notification } from '@/data/appointments';
+import { useNotifications } from '@/context/NotificationsContext';
+import { Bell, CheckCheck, Calendar, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,43 +12,30 @@ import { cn } from '@/lib/utils';
 
 const FacultyNotifications = () => {
   const { user } = useAuth();
+  const { getNotificationsFor, markAsRead, markAllAsRead } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'followers'>('all');
-  
-  // Get user's notifications
-  const userNotifications = allNotifications.filter(
-    n => n.userId === user?.id && n.userType === 'faculty'
-  );
-  
-  const [readIds, setReadIds] = useState<number[]>(
-    userNotifications.filter(n => n.read).map(n => n.id)
-  );
 
-  const isRead = (id: number) => readIds.includes(id);
-  const unreadCount = userNotifications.filter(n => !isRead(n.id)).length;
+  const userNotifications = user ? getNotificationsFor('faculty', user.id) : [];
+  const unreadCount = userNotifications.filter(n => !n.read).length;
 
   const getFilteredNotifications = () => {
     let filtered = userNotifications;
-    
+
     if (activeTab === 'requests') {
       filtered = filtered.filter(n => n.type === 'appointment_request');
     } else if (activeTab === 'followers') {
       filtered = filtered.filter(n => n.type === 'new_follower');
     }
-    
+
     return filtered.sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   };
 
-  const markAsRead = (id: number) => {
-    if (!readIds.includes(id)) {
-      setReadIds([...readIds, id]);
-    }
-  };
-
-  const markAllAsRead = () => {
-    setReadIds(userNotifications.map(n => n.id));
+  const handleMarkAllAsRead = () => {
+    if (!user) return;
+    markAllAsRead('faculty', user.id);
     toast({ description: 'All notifications marked as read' });
   };
 
@@ -77,7 +65,7 @@ const FacultyNotifications = () => {
     const now = new Date();
     const date = new Date(timestamp);
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
@@ -98,9 +86,9 @@ const FacultyNotifications = () => {
               {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
             </p>
           </div>
-          
+
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead}>
+            <Button variant="outline" onClick={handleMarkAllAsRead}>
               <CheckCheck className="h-4 w-4 mr-2" />
               Mark All as Read
             </Button>
@@ -130,8 +118,8 @@ const FacultyNotifications = () => {
               <div className="space-y-3">
                 {filteredNotifications.map(notification => {
                   const Icon = getNotificationIcon(notification.type);
-                  const read = isRead(notification.id);
-                  
+                  const read = notification.read;
+
                   return (
                     <Card 
                       key={notification.id}

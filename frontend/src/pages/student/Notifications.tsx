@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { notifications as allNotifications, Notification } from '@/data/appointments';
-import { Bell, Check, CheckCheck, Calendar, Megaphone, UserPlus, X, Filter } from 'lucide-react';
+import { Notification } from '@/data/appointments';
+import { useNotifications } from '@/context/NotificationsContext';
+import { Bell, CheckCheck, Calendar, Megaphone, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
@@ -12,24 +12,16 @@ import { cn } from '@/lib/utils';
 
 const StudentNotifications = () => {
   const { user } = useAuth();
+  const { getNotificationsFor, markAsRead, markAllAsRead } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'appointments' | 'announcements'>('all');
-  
-  // Get user's notifications and manage read state locally
-  const userNotifications = allNotifications.filter(
-    n => n.userId === user?.id && n.userType === 'student'
-  );
-  
-  const [readIds, setReadIds] = useState<number[]>(
-    userNotifications.filter(n => n.read).map(n => n.id)
-  );
 
-  const isRead = (id: number) => readIds.includes(id);
-  const unreadCount = userNotifications.filter(n => !isRead(n.id)).length;
+  const userNotifications = user ? getNotificationsFor('student', user.id) : [];
+  const unreadCount = userNotifications.filter(n => !n.read).length;
 
   const getFilteredNotifications = () => {
     let filtered = userNotifications;
-    
+
     if (activeTab === 'appointments') {
       filtered = filtered.filter(n => 
         n.type.includes('appointment') || n.type === 'appointment_reminder'
@@ -43,14 +35,9 @@ const StudentNotifications = () => {
     );
   };
 
-  const markAsRead = (id: number) => {
-    if (!readIds.includes(id)) {
-      setReadIds([...readIds, id]);
-    }
-  };
-
-  const markAllAsRead = () => {
-    setReadIds(userNotifications.map(n => n.id));
+  const handleMarkAllAsRead = () => {
+    if (!user) return;
+    markAllAsRead('student', user.id);
     toast({ description: 'All notifications marked as read' });
   };
 
@@ -115,7 +102,7 @@ const StudentNotifications = () => {
           </div>
           
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead}>
+            <Button variant="outline" onClick={handleMarkAllAsRead}>
               <CheckCheck className="h-4 w-4 mr-2" />
               Mark All as Read
             </Button>
@@ -145,7 +132,7 @@ const StudentNotifications = () => {
               <div className="space-y-3">
                 {filteredNotifications.map(notification => {
                   const Icon = getNotificationIcon(notification.type);
-                  const read = isRead(notification.id);
+                  const read = notification.read;
                   
                   return (
                     <Card 

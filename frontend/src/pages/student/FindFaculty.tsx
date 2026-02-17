@@ -37,6 +37,7 @@ const FindFaculty = () => {
   const [selectedFaculty, setSelectedFaculty] = useState<typeof faculty[0] | null>(null);
   const [bookingStep, setBookingStep] = useState(0);
   const [selectedDate, setSelectedDate] = useState('');
+  const [selectedDay, setSelectedDay] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
   const [appointmentTitle, setAppointmentTitle] = useState('');
   const [appointmentDescription, setAppointmentDescription] = useState('');
@@ -82,6 +83,7 @@ const FindFaculty = () => {
     setSelectedFaculty(null);
     setBookingStep(0);
     setSelectedDate('');
+    setSelectedDay('');
     setSelectedSlot('');
     setAppointmentTitle('');
     setAppointmentDescription('');
@@ -266,7 +268,16 @@ const FindFaculty = () => {
         )}
 
         {/* Faculty Profile / Booking Modal */}
-        <Dialog open={!!selectedFaculty} onOpenChange={() => { setSelectedFaculty(null); setBookingStep(0); }}>
+        <Dialog
+          open={!!selectedFaculty}
+          onOpenChange={() => {
+            setSelectedFaculty(null);
+            setBookingStep(0);
+            setSelectedDate('');
+            setSelectedDay('');
+            setSelectedSlot('');
+          }}
+        >
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             {selectedFaculty && (
               <>
@@ -376,7 +387,14 @@ const FindFaculty = () => {
                       {getNextDays().map(d => (
                         <button
                           key={d.date}
-                          onClick={() => { setSelectedDate(d.date); setBookingStep(2); }}
+                          onClick={() => {
+                            setSelectedDate(d.date);
+                            setSelectedDay(
+                              new Date(d.date).toLocaleDateString('en-US', { weekday: 'long' })
+                            );
+                            setSelectedSlot('');
+                            setBookingStep(2);
+                          }}
                           className={`p-3 rounded-lg border text-center transition-colors ${
                             selectedDate === d.date
                               ? 'bg-primary text-primary-foreground border-primary'
@@ -404,21 +422,36 @@ const FindFaculty = () => {
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {selectedFaculty.availability[0]?.slots.map(slot => (
-                        <button
-                          key={slot}
-                          onClick={() => { setSelectedSlot(slot); setBookingStep(3); }}
-                          className={`px-4 py-2 rounded-lg border transition-colors ${
-                            selectedSlot === slot
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-card hover:bg-accent border-border'
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
-                    </div>
+                    {(() => {
+                      const dayAvailability = selectedFaculty.availability.find(a => a.day === selectedDay);
+                      const slots = dayAvailability?.slots || [];
+
+                      if (slots.length === 0) {
+                        return (
+                          <div className="mt-4 p-4 rounded-lg bg-accent/50 text-sm text-muted-foreground">
+                            No slots available for {selectedDay || 'this day'}. Please choose another date.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          {slots.map(slot => (
+                            <button
+                              key={slot}
+                              onClick={() => { setSelectedSlot(slot); setBookingStep(3); }}
+                              className={`px-4 py-2 rounded-lg border transition-colors ${
+                                selectedSlot === slot
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-card hover:bg-accent border-border'
+                              }`}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
 
                     <Button variant="outline" className="mt-4" onClick={() => setBookingStep(1)}>
                       Back
