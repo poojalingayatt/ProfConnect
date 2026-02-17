@@ -78,6 +78,13 @@ exports.createAppointment = async (user, data) => {
     },
   });
 
+  await notificationsService.createNotification({
+    userId: facultyId,
+    type: 'APPOINTMENT_REQUEST',
+    title: 'New Appointment Request',
+    message: `You have a new appointment request for ${new Date(date).toLocaleDateString()} (${slot}).`,
+  });
+
   return appointment;
 };
 
@@ -121,20 +128,21 @@ exports.updateStatus = async (user, appointmentId, status) => {
     throw new Error('Unauthorized');
   }
 
-  return await prisma.appointment.update({
+  const updated = await prisma.appointment.update({
     where: { id: appointmentId },
     data: { status },
   });
 
-    // Notify student
-  await notificationsService.createNotification({
-  userId: appointment.studentId,
-  type: status === 'ACCEPTED'
-    ? 'APPOINTMENT_ACCEPTED'
-    : 'APPOINTMENT_REJECTED',
-  title: `Appointment ${status}`,
-  message: `Your appointment has been ${status.toLowerCase()}.`,
-});
+  if (status === 'ACCEPTED' || status === 'REJECTED') {
+    await notificationsService.createNotification({
+      userId: appointment.studentId,
+      type: status === 'ACCEPTED' ? 'APPOINTMENT_ACCEPTED' : 'APPOINTMENT_REJECTED',
+      title: `Appointment ${status}`,
+      message: `Your appointment request has been ${status.toLowerCase()}.`,
+    });
+  }
+
+  return updated;
 };
 
 
@@ -159,28 +167,22 @@ exports.cancelAppointment = async (user, appointmentId) => {
     throw new Error('Unauthorized');
   }
 
-  return await prisma.appointment.update({
+  const updated = await prisma.appointment.update({
     where: { id: appointmentId },
     data: { status: 'CANCELLED' },
   });
 
-  const otherUserId =
-  user.id === appointment.studentId
-    ? appointment.facultyId
-    : appointment.studentId;
+  const cancelledByStudent = user.id === appointment.studentId;
+  const notifyUserId = cancelledByStudent ? appointment.facultyId : appointment.studentId;
 
-await notificationsService.createNotification({
-  userId: otherUserId,
-  type: 'APPOINTMENT_CANCELLED',
-  title: 'Appointment Cancelled',
-  message: 'An appointment was cancelled.',
-});
+  await notificationsService.createNotification({
+    userId: notifyUserId,
+    type: 'APPOINTMENT_CANCELLED',
+    title: 'Appointment Cancelled',
+    message: cancelledByStudent
+      ? 'A student cancelled an appointment.'
+      : 'A faculty member cancelled an appointment.',
+  });
+
+  return updated;
 };
-
-// Notify faculty
-await notificationsService.createNotification({
-  userId: facultyId,
-  type: 'APPOINTMENT_REQUEST',
-  title: 'New Appointment Request',
-  message: `You have a new appointment request.`,
-});

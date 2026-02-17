@@ -10,11 +10,30 @@ const facultyRoutes = require('./routes/faculty.routes');
 const followsRoutes = require('./routes/follows.routes');
 const availabilityRoutes = require('./routes/availability.routes');
 const appointmentsRoutes = require('./routes/appointments.routes');
+const notificationsRoutes = require('./routes/notifications.routes');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
 // Security middleware
 app.use(helmet());
+
+/**
+ * RATE LIMITER
+ * ----------------------------------------
+ * Prevents brute-force attacks.
+ * Limits number of requests per IP.
+ */
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // max 200 requests per IP
+  message: {
+    error: 'Too many requests. Please try again later.',
+  },
+});
+
+// Apply globally
+app.use(limiter);
 
 // CORS configuration
 app.use(cors({
@@ -38,6 +57,7 @@ app.use('/api/faculty', facultyRoutes);
 app.use('/api/follows', followsRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/appointments', appointmentsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

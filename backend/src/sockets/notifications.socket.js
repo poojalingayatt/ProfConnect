@@ -12,25 +12,25 @@ const { JWT_SECRET } = require('../config/env');
 
 module.exports = (io) => {
 
-  io.on('connection', (socket) => {
-
-    const token = socket.handshake.auth.token;
-
-    if (!token) {
-      socket.disconnect();
-      return;
-    }
-
+  io.use((socket, next) => {
     try {
+      const token = socket.handshake?.auth?.token;
+      if (!token) {
+        return next(new Error('Unauthorized'));
+      }
+
       const user = jwt.verify(token, JWT_SECRET);
-
-      // Join personal room
-      socket.join(`user:${user.id}`);
-
-    } catch (error) {
-      socket.disconnect();
+      socket.user = user;
+      return next();
+    } catch (_err) {
+      return next(new Error('Unauthorized'));
     }
+  });
 
+  io.on('connection', (socket) => {
+    if (socket.user?.id) {
+      socket.join(`user:${socket.user.id}`);
+    }
   });
 
 };

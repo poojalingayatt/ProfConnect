@@ -34,3 +34,15 @@ function authenticate(req, _res, next) {
 
 exports.authenticate = authenticate;
 exports.auth = authenticate;
+
+exports.requireRole = (role) => (req, _res, next) => {
+  if (!req.user) {
+    return next(createHttpError(401, 'Unauthorized'));
+  }
+
+  if (req.user.role !== role) {
+    return next(createHttpError(403, 'Forbidden'));
+  }
+
+  return next();
+};
