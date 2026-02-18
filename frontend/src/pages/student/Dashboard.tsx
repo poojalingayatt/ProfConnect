@@ -1,6 +1,4 @@
 import { useAuth } from '@/context/AuthContext';
-import { appointments } from '@/data/appointments';
-import { faculty } from '@/data/users';
 import { Calendar, Clock, Heart, CheckCircle, ArrowRight, MapPin, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,25 +8,17 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 
 const StudentDashboard = () => {
-  const { user, getStudentData } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const studentData = getStudentData();
 
-  // Get student's appointments
-  const studentAppointments = appointments.filter(a => a.studentId === user?.id);
-  const upcomingAppointments = studentAppointments.filter(
-    a => a.status === 'accepted' && new Date(a.date) >= new Date()
-  );
-  const pendingAppointments = studentAppointments.filter(a => a.status === 'pending');
-  const completedCount = studentAppointments.filter(a => a.status === 'completed').length;
+  const studentAppointments: any[] = [];
+  const upcomingAppointments: any[] = [];
+  const pendingAppointments: any[] = [];
+  const completedCount = 0;
 
-  // Get followed faculty
-  const followedFacultyCount = studentData?.followedFaculty.length || 0;
+  const followedFacultyCount = 0;
 
-  // Get recommended faculty (not followed)
-  const recommendedFaculty = faculty.filter(
-    f => !studentData?.followedFaculty.includes(f.id)
-  ).slice(0, 3);
+  const recommendedFaculty: any[] = [];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -44,7 +34,7 @@ const StudentDashboard = () => {
   };
 
   const getFacultyName = (facultyId: number) => {
-    return faculty.find(f => f.id === facultyId)?.name || 'Unknown';
+    return 'Unknown';
   };
 
   return (

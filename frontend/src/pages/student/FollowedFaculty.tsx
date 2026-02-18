@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { faculty } from '@/data/users';
+import { queryKeys } from '@/lib/queryKeys';
 import { Heart, Star, MapPin, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,20 +9,92 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { facultyApi } from '@/api/faculty';
+import { Faculty } from '@/types/faculty';
+
+type FacultyListItem = {
+  id: number;
+  name: string;
+  department: string;
+  avatar?: string;
+  isOnline: boolean;
+  rating: number;
+  announcements: { date: string; title: string }[];
+  officeLocation: string;
+};
+
+// Transform backend Faculty to UI format
+const transformFollowedFaculty = (faculty: Faculty): FacultyListItem => {
+  return {
+    id: faculty.id,
+    name: faculty.name,
+    department: faculty.department || 'Unknown',
+    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${faculty.name}`,
+    isOnline: faculty.facultyProfile.isOnline,
+    rating: faculty.facultyProfile.rating,
+    announcements: [], // TODO: Replace with actual announcements from backend
+    officeLocation: 'Building A, Room 101', // TODO: Replace with actual office location from backend
+  };
+};
+
 
 const FollowedFaculty = () => {
-  const { getStudentData } = useAuth();
-  const studentData = getStudentData();
+  useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   
-  const [followedIds, setFollowedIds] = useState<number[]>(studentData?.followedFaculty || []);
+  // Fetch followed faculty from backend
+  const { data: followedFacultyRaw = [], isLoading, error } = useQuery({
+    queryKey: queryKeys.facultyFollowed(),
+    queryFn: facultyApi.getMyFollowed,
+    placeholderData: [],
+  });
+  
+  // Transform backend data to UI format
+  const followedFaculty = followedFacultyRaw.map(transformFollowedFaculty);
 
-  const followedFaculty = faculty.filter(f => followedIds.includes(f.id));
+  // Mutation for unfollow with proper optimistic update and rollback
+  const unfollowMutation = useMutation({
+    mutationFn: (facultyId: number) => facultyApi.unfollowFaculty(facultyId),
+    onMutate: async (facultyId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.facultyFollowed() });
+      
+      // Snapshot the previous value
+      const previousFollowed = queryClient.getQueryData<Faculty[]>(queryKeys.facultyFollowed());
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData<Faculty[]>(queryKeys.facultyFollowed(), (oldData) => {
+        if (!oldData) return oldData;
+        return oldData.filter(f => f.id !== facultyId);
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousFollowed };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.facultyFollowed() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.facultyList() });
+      toast({ description: 'Unfollowed successfully' });
+    },
+    onError: (error: any, facultyId, context) => {
+      // Rollback to the previous value
+      if (context?.previousFollowed) {
+        queryClient.setQueryData(queryKeys.facultyFollowed(), context.previousFollowed);
+      }
+      
+      toast({
+        title: 'Error',
+        description: error?.response?.data?.message || 'Failed to unfollow faculty',
+        variant: 'destructive'
+      });
+    }
+  });
 
   const handleUnfollow = (facultyId: number) => {
-    setFollowedIds(prev => prev.filter(id => id !== facultyId));
-    toast({ description: 'Unfollowed successfully' });
+    unfollowMutation.mutate(facultyId);
   };
 
   return (
@@ -36,14 +108,25 @@ const FollowedFaculty = () => {
           </p>
         </div>
 
-        {followedFaculty.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-destructive">Error loading followed faculty: {(error as Error).message}</p>
+            <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        ) : followedFaculty.length === 0 ? (
           <div className="text-center py-16">
             <Heart className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
             <h3 className="text-xl font-medium text-foreground mb-2">No followed faculty yet</h3>
             <p className="text-muted-foreground max-w-md mx-auto">
               Search and follow faculty members to see their updates and availability here.
             </p>
-            <Button className="mt-6" onClick={() => navigate('/student/faculty')}>
+            <Button className="mt-6" onClick={() => navigate('/student/find-faculty')}>
               Find Faculty
             </Button>
           </div>
@@ -65,7 +148,8 @@ const FollowedFaculty = () => {
                         </div>
                         <button
                           onClick={() => handleUnfollow(f.id)}
-                          className="p-1 rounded hover:bg-accent transition-colors"
+                          disabled={unfollowMutation.isPending}
+                          className="p-1 rounded hover:bg-accent transition-colors disabled:opacity-50"
                         >
                           <Heart className="h-5 w-5 fill-destructive text-destructive" />
                         </button>
@@ -106,10 +190,10 @@ const FollowedFaculty = () => {
 
                   {/* Actions */}
                   <div className="flex gap-3 mt-4 pt-4 border-t border-border">
-                    <Button variant="outline" className="flex-1" onClick={() => navigate('/student/faculty')}>
+                    <Button variant="outline" className="flex-1" onClick={() => navigate('/student/find-faculty')}>
                       View Profile
                     </Button>
-                    <Button className="flex-1" onClick={() => navigate('/student/faculty')}>
+                    <Button className="flex-1" onClick={() => navigate('/student/find-faculty')}>
                       Book
                     </Button>
                   </div>

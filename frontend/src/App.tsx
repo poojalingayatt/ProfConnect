@@ -49,15 +49,15 @@ const App = () => (
             <Route
               path="/student/dashboard"
               element={
-                <ProtectedRoute allowedUserType="student">
+                <ProtectedRoute allowedUserType="STUDENT">
                   <StudentDashboard />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/student/faculty"
+              path="/student/find-faculty"
               element={
-                <ProtectedRoute allowedUserType="student">
+                <ProtectedRoute allowedUserType="STUDENT">
                   <FindFaculty />
                 </ProtectedRoute>
               }
@@ -65,7 +65,7 @@ const App = () => (
             <Route
               path="/student/appointments"
               element={
-                <ProtectedRoute allowedUserType="student">
+                <ProtectedRoute allowedUserType="STUDENT">
                   <StudentAppointments />
                 </ProtectedRoute>
               }
@@ -73,7 +73,7 @@ const App = () => (
             <Route
               path="/student/followed"
               element={
-                <ProtectedRoute allowedUserType="student">
+                <ProtectedRoute allowedUserType="STUDENT">
                   <FollowedFaculty />
                 </ProtectedRoute>
               }
@@ -81,7 +81,7 @@ const App = () => (
             <Route
               path="/student/settings"
               element={
-                <ProtectedRoute allowedUserType="student">
+                <ProtectedRoute allowedUserType="STUDENT">
                   <StudentSettings />
                 </ProtectedRoute>
               }
@@ -89,7 +89,7 @@ const App = () => (
             <Route
               path="/student/notifications"
               element={
-                <ProtectedRoute allowedUserType="student">
+                <ProtectedRoute allowedUserType="STUDENT">
                   <StudentNotifications />
                 </ProtectedRoute>
               }
@@ -99,7 +99,7 @@ const App = () => (
             <Route
               path="/faculty/dashboard"
               element={
-                <ProtectedRoute allowedUserType="faculty">
+                <ProtectedRoute allowedUserType="FACULTY">
                   <FacultyDashboard />
                 </ProtectedRoute>
               }
@@ -107,7 +107,7 @@ const App = () => (
             <Route
               path="/faculty/availability"
               element={
-                <ProtectedRoute allowedUserType="faculty">
+                <ProtectedRoute allowedUserType="FACULTY">
                   <FacultyAvailability />
                 </ProtectedRoute>
               }
@@ -115,7 +115,7 @@ const App = () => (
             <Route
               path="/faculty/appointments"
               element={
-                <ProtectedRoute allowedUserType="faculty">
+                <ProtectedRoute allowedUserType="FACULTY">
                   <FacultyAppointments />
                 </ProtectedRoute>
               }
@@ -123,7 +123,7 @@ const App = () => (
             <Route
               path="/faculty/followers"
               element={
-                <ProtectedRoute allowedUserType="faculty">
+                <ProtectedRoute allowedUserType="FACULTY">
                   <FacultyFollowers />
                 </ProtectedRoute>
               }
@@ -131,7 +131,7 @@ const App = () => (
             <Route
               path="/faculty/settings"
               element={
-                <ProtectedRoute allowedUserType="faculty">
+                <ProtectedRoute allowedUserType="FACULTY">
                   <FacultySettings />
                 </ProtectedRoute>
               }
@@ -139,7 +139,7 @@ const App = () => (
             <Route
               path="/faculty/notifications"
               element={
-                <ProtectedRoute allowedUserType="faculty">
+                <ProtectedRoute allowedUserType="FACULTY">
                   <FacultyNotifications />
                 </ProtectedRoute>
               }

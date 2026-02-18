@@ -6,14 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { GraduationCap, Eye, EyeOff, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { GraduationCap, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [showCredentials, setShowCredentials] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
   const { login } = useAuth();
@@ -24,55 +23,25 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const user = await login(email, password);
 
-    const result = login(email, password);
-    setIsLoading(false);
-
-    if (result.success) {
       toast({
         title: 'Welcome back!',
-        description: result.message,
+        description: 'Login successful.',
       });
-      
-      // Redirect based on user type
-      const userType = localStorage.getItem('profconnect_user_type');
-      if (userType === 'faculty') {
-        navigate('/faculty/dashboard');
-      } else {
-        navigate('/student/dashboard');
-      }
-    } else {
+
+      navigate(user.role === 'FACULTY' ? '/faculty/dashboard' : '/student/dashboard');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Login failed';
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: result.message,
+        description: msg,
       });
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const fillDemoCredentials = (type: 'student' | 'faculty') => {
-    if (type === 'student') {
-      setEmail('student1@profconnect.com');
-      setPassword('Student@123');
-    } else {
-      setEmail('faculty1@profconnect.com');
-      setPassword('Faculty@123');
-    }
-  };
-
-  const demoCredentials = {
-    students: [
-      { email: 'student1@profconnect.com', password: 'Student@123', name: 'Aisha Patel' },
-      { email: 'student2@profconnect.com', password: 'Student@123', name: 'Rohan Kumar' },
-      { email: 'student3@profconnect.com', password: 'Student@123', name: 'Priya Singh' },
-    ],
-    faculty: [
-      { email: 'faculty1@profconnect.com', password: 'Faculty@123', name: 'Prof. Rajesh Sharma', dept: 'Computer Science' },
-      { email: 'faculty2@profconnect.com', password: 'Faculty@123', name: 'Prof. Meera Verma', dept: 'Electronics' },
-      { email: 'faculty3@profconnect.com', password: 'Faculty@123', name: 'Prof. Arjun Malhotra', dept: 'Mechanical Engineering' },
-    ],
   };
 
   return (
@@ -105,26 +74,6 @@ const Login = () => {
             <p className="text-muted-foreground">
               Sign in to your account to continue
             </p>
-          </div>
-
-          {/* Demo buttons */}
-          <div className="flex gap-3 mb-6">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => fillDemoCredentials('student')}
-            >
-              Try as Student
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => fillDemoCredentials('faculty')}
-            >
-              Try as Faculty
-            </Button>
           </div>
 
           {/* Form */}
@@ -191,49 +140,6 @@ const Login = () => {
               </Link>
             </p>
           </form>
-
-          {/* Demo credentials accordion */}
-          <div className="mt-8 border border-border rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowCredentials(!showCredentials)}
-              className="w-full flex items-center justify-between p-4 text-left hover:bg-accent/50 transition-colors"
-            >
-              <span className="text-sm font-medium text-foreground">View demo credentials</span>
-              {showCredentials ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            
-            {showCredentials && (
-              <div className="p-4 pt-0 border-t border-border bg-accent/20">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Student Accounts</p>
-                    <div className="space-y-2">
-                      {demoCredentials.students.map((cred, i) => (
-                        <div key={i} className="text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground">{cred.name}</span>
-                          <br />
-                          {cred.email} / {cred.password}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Faculty Accounts</p>
-                    <div className="space-y-2">
-                      {demoCredentials.faculty.map((cred, i) => (
-                        <div key={i} className="text-xs text-muted-foreground">
-                          <span className="font-medium text-foreground">{cred.name}</span> ({cred.dept})
-                          <br />
-                          {cred.email} / {cred.password}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

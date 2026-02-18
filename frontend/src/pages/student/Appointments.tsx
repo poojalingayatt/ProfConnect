@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { appointments as allAppointments, AppointmentStatus } from '@/data/appointments';
-import { faculty } from '@/data/users';
 import { Calendar, Clock, MapPin, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,21 +11,36 @@ import RescheduleModal from '@/components/modals/RescheduleModal';
 import AddNotesModal from '@/components/modals/AddNotesModal';
 import { useToast } from '@/hooks/use-toast';
 
+type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
+
+type Appointment = {
+  id: number;
+  studentId: number;
+  facultyId: number;
+  title: string;
+  description?: string;
+  date: string;
+  time: string;
+  duration?: number;
+  status: AppointmentStatus;
+  location?: string;
+};
+
 const StudentAppointments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('all');
   const [rescheduleModal, setRescheduleModal] = useState<{
     open: boolean;
-    appointment: typeof allAppointments[0] | null;
+    appointment: Appointment | null;
   }>({ open: false, appointment: null });
   const [notesModal, setNotesModal] = useState<{
     open: boolean;
-    appointment: typeof allAppointments[0] | null;
+    appointment: Appointment | null;
   }>({ open: false, appointment: null });
 
-  const studentAppointments = allAppointments.filter(a => a.studentId === user?.id);
-  
+  const studentAppointments: Appointment[] = [];
+
   const now = new Date();
   const upcomingAppointments = studentAppointments.filter(
     a => new Date(a.date) >= now && (a.status === 'accepted' || a.status === 'pending')
@@ -48,7 +61,7 @@ const StudentAppointments = () => {
   };
 
   const getFacultyInfo = (facultyId: number) => {
-    return faculty.find(f => f.id === facultyId);
+    return undefined as any;
   };
 
   const getStatusBadge = (status: AppointmentStatus) => {
@@ -59,6 +72,7 @@ const StudentAppointments = () => {
       cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
       rejected: 'bg-destructive/10 text-destructive border-destructive/20',
     };
+
     return (
       <Badge className={styles[status]}>
         {status.charAt(0).toUpperCase() + status.slice(1)}

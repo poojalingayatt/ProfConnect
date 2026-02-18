@@ -14,15 +14,14 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 
 const FacultySettings = () => {
-  const { user, getFacultyData } = useAuth();
-  const facultyData = getFacultyData();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState('');
-  const [bio, setBio] = useState(facultyData?.bio || '');
-  const [officeLocation, setOfficeLocation] = useState(facultyData?.officeLocation || '');
-  const [specializations, setSpecializations] = useState<string[]>(facultyData?.specialization || []);
+  const [bio, setBio] = useState('');
+  const [officeLocation, setOfficeLocation] = useState('');
+  const [specializations, setSpecializations] = useState<string[]>([]);
   const [newSpecialization, setNewSpecialization] = useState('');
   
   const [notifications, setNotifications] = useState({

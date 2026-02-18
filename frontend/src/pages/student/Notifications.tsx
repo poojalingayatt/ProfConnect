@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Notification } from '@/data/appointments';
 import { useNotifications } from '@/context/NotificationsContext';
 import { Bell, CheckCheck, Calendar, Megaphone, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,7 @@ const StudentNotifications = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'appointments' | 'announcements'>('all');
 
-  const userNotifications = user ? getNotificationsFor('student', user.id) : [];
+  const userNotifications = user ? getNotificationsFor(user.role, user.id) : [];
   const unreadCount = userNotifications.filter(n => !n.read).length;
 
   const getFilteredNotifications = () => {
@@ -37,11 +36,11 @@ const StudentNotifications = () => {
 
   const handleMarkAllAsRead = () => {
     if (!user) return;
-    markAllAsRead('student', user.id);
+    markAllAsRead(user.role, user.id);
     toast({ description: 'All notifications marked as read' });
   };
 
-  const getNotificationIcon = (type: Notification['type']) => {
+  const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'appointment_accepted':
       case 'appointment_rejected':
@@ -57,7 +56,7 @@ const StudentNotifications = () => {
     }
   };
 
-  const getNotificationColor = (type: Notification['type']) => {
+  const getNotificationColor = (type: string) => {
     switch (type) {
       case 'appointment_accepted':
         return 'text-success bg-success/10';

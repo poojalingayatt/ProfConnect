@@ -18,19 +18,17 @@ const timeSlots = [
 ];
 
 const FacultyAvailability = () => {
-  const { getFacultyData } = useAuth();
-  const facultyData = getFacultyData();
+  useAuth();
   const { toast } = useToast();
 
-  const [isInOffice, setIsInOffice] = useState(facultyData?.isOnline || false);
-  const [currentLocation, setCurrentLocation] = useState(facultyData?.currentLocation || '');
+  const [isInOffice, setIsInOffice] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState('');
   
   // Initialize availability grid
   const [availability, setAvailability] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
     days.forEach(day => {
-      const dayAvail = facultyData?.availability.find(a => a.day === day);
-      initial[day] = dayAvail?.slots || [];
+      initial[day] = [];
     });
     return initial;
   });

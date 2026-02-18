@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { appointments as allAppointments, AppointmentStatus } from '@/data/appointments';
-import { students } from '@/data/users';
 import { Calendar, Clock, MapPin, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,12 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 
+type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
+
 const FacultyAppointments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'upcoming' | 'completed'>('all');
 
-  const facultyAppointments = allAppointments.filter(a => a.facultyId === user?.id);
+  const facultyAppointments: any[] = [];
   
   const now = new Date();
   const pendingAppointments = facultyAppointments.filter(a => a.status === 'pending');
@@ -41,7 +41,7 @@ const FacultyAppointments = () => {
   };
 
   const getStudentInfo = (studentId: number) => {
-    return students.find(s => s.id === studentId);
+    return undefined as any;
   };
 
   const getStatusBadge = (status: AppointmentStatus) => {

@@ -34,7 +34,7 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { user, userType, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { getNotificationsFor, unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,13 +58,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { icon: Settings, label: 'Settings', path: '/faculty/settings' },
   ];
 
-  const navItems = userType === 'faculty' ? facultyNavItems : studentNavItems;
+  const navItems = user?.role === 'FACULTY' ? facultyNavItems : studentNavItems;
 
-  const userNotifications = user && userType
-    ? getNotificationsFor(userType as 'student' | 'faculty', user.id).filter(n => !n.read)
+  const userNotifications = user
+    ? getNotificationsFor(user.role, user.id).filter((n) => !n.read)
     : [];
 
-  const badgeCount = user && userType ? unreadCount : 0;
+  const badgeCount = user ? unreadCount : 0;
 
   const handleLogout = () => {
     logout();
@@ -134,7 +134,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 px-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.avatar} alt={user?.name} />
+                    <AvatarImage src="" alt={user?.name} />
                     <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <span className="hidden md:block text-sm font-medium">{user?.name}</span>
@@ -148,7 +148,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate(userType === 'faculty' ? '/faculty/settings' : '/student/settings')}>
+                <DropdownMenuItem
+                  onClick={() => navigate(user?.role === 'FACULTY' ? '/faculty/settings' : '/student/settings')}
+                >
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
                 </DropdownMenuItem>

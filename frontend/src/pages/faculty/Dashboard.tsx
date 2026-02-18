@@ -1,6 +1,4 @@
 import { useAuth } from '@/context/AuthContext';
-import { appointments } from '@/data/appointments';
-import { students } from '@/data/users';
 import { Calendar, Clock, Users, CheckCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,24 +9,19 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 
 const FacultyDashboard = () => {
-  const { user, getFacultyData } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const facultyData = getFacultyData();
 
-  // Get faculty's appointments
-  const facultyAppointments = appointments.filter(a => a.facultyId === user?.id);
-  const pendingAppointments = facultyAppointments.filter(a => a.status === 'pending');
-  const upcomingAppointments = facultyAppointments.filter(
-    a => a.status === 'accepted' && new Date(a.date) >= new Date()
-  );
-  const completedCount = facultyAppointments.filter(a => a.status === 'completed').length;
+  const facultyAppointments: any[] = [];
+  const pendingAppointments: any[] = [];
+  const upcomingAppointments: any[] = [];
+  const completedCount = 0;
 
-  // Get follower count
-  const followerCount = facultyData?.followerCount || 0;
+  const followerCount = 0;
 
   const getStudentInfo = (studentId: number) => {
-    return students.find(s => s.id === studentId);
+    return undefined;
   };
 
   const handleAccept = (appointmentId: number) => {

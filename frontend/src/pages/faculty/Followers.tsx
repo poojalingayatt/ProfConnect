@@ -1,16 +1,30 @@
 import { useAuth } from '@/context/AuthContext';
-import { students } from '@/data/users';
+import { queryKeys } from '@/lib/queryKeys';
 import { Users, Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
+import { useQuery } from '@tanstack/react-query';
+import { facultyApi } from '@/api/faculty';
 
 const FacultyFollowers = () => {
-  const { user, getFacultyData } = useAuth();
-  const facultyData = getFacultyData();
+  const { user } = useAuth();
 
-  // Get students following this faculty
-  const followers = students.filter(s => s.followedFaculty.includes(user?.id || 0));
+  // Fetch followers from backend
+  const { data: followersRaw = [], isLoading, error } = useQuery({
+    queryKey: queryKeys.facultyFollowers(),
+    queryFn: facultyApi.getMyFollowers,
+    placeholderData: [],
+  });
+  
+  // Transform backend data to UI format
+  const followers = followersRaw.map(faculty => ({
+    id: faculty.id,
+    name: faculty.name,
+    department: faculty.department || 'Unknown',
+    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${faculty.name}`,
+  }));
 
   return (
     <DashboardLayout>
@@ -19,11 +33,22 @@ const FacultyFollowers = () => {
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Followed By</h1>
           <p className="text-muted-foreground mt-1">
-            {facultyData?.followerCount || followers.length} students are following you
+            {followers.length} students are following you
           </p>
         </div>
 
-        {followers.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-destructive">Error loading followers: {(error as Error).message}</p>
+            <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        ) : followers.length === 0 ? (
           <div className="text-center py-16">
             <Users className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
             <h3 className="text-xl font-medium text-foreground mb-2">No followers yet</h3>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
 import {
   Select,
   SelectContent,
@@ -13,11 +14,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import type { UserRole } from '@/types/auth';
 
 const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const { register } = useAuth();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,17 +33,17 @@ const Register = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!name.trim()) {
       newErrors.name = 'Name is required';
     }
-    
+
     if (!email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = 'Please enter a valid email';
     }
-    
+
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (password.length < 8) {
@@ -47,31 +51,47 @@ const Register = () => {
     } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
       newErrors.password = 'Password must include uppercase, lowercase, and number';
     }
-    
+
     if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setIsLoading(true);
-    
-    // Simulate registration delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: 'Registration Successful!',
-      description: 'Please login with your credentials.',
-    });
-    
-    navigate('/login');
+
+    try {
+      const backendRole: UserRole = role === 'faculty' ? 'FACULTY' : 'STUDENT';
+      const user = await register({
+        name,
+        email,
+        password,
+        role: backendRole,
+      });
+
+      toast({
+        title: 'Registration successful',
+        description: 'Your account has been created.',
+      });
+
+      navigate(user.role === 'FACULTY' ? '/faculty/dashboard' : '/student/dashboard');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Registration failed';
+      toast({
+        variant: 'destructive',
+        title: 'Registration failed',
+        description: msg,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -200,13 +220,6 @@ const Register = () => {
               <Link to="/login" className="text-primary hover:underline font-medium">
                 Sign in
               </Link>
-            </div>
-
-            {/* Demo notice */}
-            <div className="mt-6 p-4 rounded-lg bg-accent/50 border border-border/50">
-              <p className="text-xs text-muted-foreground text-center">
-                <strong>Demo Mode:</strong> Registration is simulated. Use the existing demo credentials to explore the app.
-              </p>
             </div>
           </CardContent>
         </Card>

@@ -90,6 +90,19 @@ exports.createAppointment = async (user, data) => {
  */
 exports.getMyAppointments = async (user) => {
 
+  const now = new Date();
+
+  // Auto-complete past accepted appointments
+  await prisma.appointment.updateMany({
+    where: {
+      status: 'ACCEPTED',
+      date: { lt: now },
+    },
+    data: {
+      status: 'COMPLETED',
+    },
+  });
+
   if (user.role === 'STUDENT') {
     return await prisma.appointment.findMany({
       where: { studentId: user.id },
@@ -155,6 +168,9 @@ exports.cancelAppointment = async (user, appointmentId) => {
     throw new Error('Appointment not found');
   }
 
+  if (appointment.status === 'COMPLETED')
+    throw new Error('Cannot cancel completed appointment');
+
   // Only student or faculty involved can cancel
   if (
     appointment.studentId !== user.id &&
@@ -199,6 +215,10 @@ exports.requestReschedule = async (user, appointmentId, data) => {
 
     if (!appointment) {
       throw new Error('Appointment not found');
+    }
+
+    if (appointment.status !== 'ACCEPTED') {
+      throw new Error('Only accepted appointments can be rescheduled');
     }
 
     // Must belong to student

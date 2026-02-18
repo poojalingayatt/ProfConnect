@@ -1,15 +1,24 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { notifications as initialNotifications, Notification } from '@/data/appointments';
 import { useAuth } from '@/context/AuthContext';
 
-type UserType = 'student' | 'faculty';
+export type NotificationUserType = 'STUDENT' | 'FACULTY';
+
+export interface AppNotification {
+  id: number;
+  userType: NotificationUserType;
+  userId: number;
+  type: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+}
 
 interface NotificationsContextType {
-  notifications: Notification[];
+  notifications: AppNotification[];
   unreadCount: number;
   markAsRead: (id: number) => void;
-  markAllAsRead: (userType: UserType, userId: number) => void;
-  getNotificationsFor: (userType: UserType, userId: number) => Notification[];
+  markAllAsRead: (userType: NotificationUserType, userId: number) => void;
+  getNotificationsFor: (userType: NotificationUserType, userId: number) => AppNotification[];
 }
 
 const STORAGE_KEY = 'profconnect_read_notifications';
@@ -37,10 +46,9 @@ const writeStoredReadIds = (ids: number[]) => {
 };
 
 export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, userType, isAuthenticated } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>(() => {
-    const storedReadIds = new Set(readStoredReadIds());
-    return initialNotifications.map((n) => ({ ...n, read: n.read || storedReadIds.has(n.id) }));
+  const { user, isAuthenticated } = useAuth();
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
+    return [] as AppNotification[];
   });
 
   useEffect(() => {
@@ -48,16 +56,16 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     setNotifications((prev) => prev.map((n) => ({ ...n, read: n.read || storedReadIds.has(n.id) })));
   }, []);
 
-  const getNotificationsFor = (targetUserType: UserType, targetUserId: number) => {
+  const getNotificationsFor = (targetUserType: NotificationUserType, targetUserId: number) => {
     return notifications.filter((n) => n.userType === targetUserType && n.userId === targetUserId);
   };
 
   const scopedUnreadCount = useMemo(() => {
-    if (!isAuthenticated || !user || !userType) return 0;
-    return getNotificationsFor(userType as UserType, user.id).filter((n) => !n.read).length;
-  }, [isAuthenticated, notifications, user, userType]);
+    if (!isAuthenticated || !user) return 0;
+    return getNotificationsFor(user.role, user.id).filter((n) => !n.read).length;
+  }, [isAuthenticated, notifications, user]);
 
-  const persistReadIdsFromState = (next: Notification[]) => {
+  const persistReadIdsFromState = (next: AppNotification[]) => {
     const readIds = next.filter((n) => n.read).map((n) => n.id);
     writeStoredReadIds(readIds);
   };
@@ -70,7 +78,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  const markAllAsRead = (targetUserType: UserType, targetUserId: number) => {
+  const markAllAsRead = (targetUserType: NotificationUserType, targetUserId: number) => {
     setNotifications((prev) => {
       const next = prev.map((n) =>
         n.userType === targetUserType && n.userId === targetUserId ? { ...n, read: true } : n
