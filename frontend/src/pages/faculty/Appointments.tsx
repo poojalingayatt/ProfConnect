@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
-import { getAppointments, acceptAppointment, rejectAppointment, cancelAppointment } from '@/api/appointments';
+import { getAppointments, acceptAppointment, rejectAppointment, cancelAppointment, approveReschedule, rejectReschedule } from '@/api/appointments';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 
@@ -62,7 +62,7 @@ const FacultyAppointments = () => {
     }
   });
 
-  const rejectMutation = useMutation({
+  const rejectAppointmentMutation = useMutation({
     mutationFn: rejectAppointment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -89,6 +89,38 @@ const FacultyAppointments = () => {
     onError: () => {
       toast({
         description: 'Failed to cancel appointment',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: approveReschedule,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        description: 'Reschedule approved',
+      });
+    },
+    onError: () => {
+      toast({
+        description: 'Failed to approve reschedule',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const rejectRescheduleMutation = useMutation({
+    mutationFn: rejectReschedule,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        description: 'Reschedule rejected',
+      });
+    },
+    onError: () => {
+      toast({
+        description: 'Failed to reject reschedule',
         variant: 'destructive',
       });
     }
@@ -142,11 +174,19 @@ const FacultyAppointments = () => {
   };
 
   const handleReject = (appointmentId: number) => {
-    rejectMutation.mutate(appointmentId);
+    rejectAppointmentMutation.mutate(appointmentId);
+  };
+
+  const handleRejectReschedule = (appointmentId: number) => {
+    rejectRescheduleMutation.mutate(appointmentId);
   };
 
   const handleCancel = (appointmentId: number) => {
     cancelMutation.mutate(appointmentId);
+  };
+
+  const handleApproveReschedule = (appointmentId: number) => {
+    approveMutation.mutate(appointmentId);
   };
 
   const filteredAppointments = getFilteredAppointments();
@@ -203,6 +243,7 @@ const FacultyAppointments = () => {
                   const student = getStudentInfo(appointment);
                   const isPending = appointment.status === 'PENDING';
                   const isAccepted = appointment.status === 'ACCEPTED';
+                  const isRescheduleRequested = appointment.status === 'RESCHEDULE_REQUESTED';
 
                   return (
                     <Card 
@@ -266,10 +307,33 @@ const FacultyAppointments = () => {
                                       size="sm" 
                                       variant="outline" 
                                       onClick={() => handleReject(appointment.id)}
-                                      disabled={rejectMutation.isPending}
+                                      disabled={rejectAppointmentMutation.isPending}
                                     >
                                       <X className="h-4 w-4 mr-1" />
-                                      {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
+                                      {rejectAppointmentMutation.isPending ? 'Rejecting...' : 'Reject'}
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {isRescheduleRequested && (
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      size="sm" 
+                                      variant="success" 
+                                      onClick={() => handleApproveReschedule(appointment.id)}
+                                      disabled={approveMutation.isPending}
+                                    >
+                                      <Check className="h-4 w-4 mr-1" />
+                                      {approveMutation.isPending ? 'Approving...' : 'Approve'}
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      onClick={() => handleRejectReschedule(appointment.id)}
+                                      disabled={rejectRescheduleMutation.isPending}
+                                    >
+                                      <X className="h-4 w-4 mr-1" />
+                                      {rejectRescheduleMutation.isPending ? 'Rejecting...' : 'Reject'}
                                     </Button>
                                   </div>
                                 )}

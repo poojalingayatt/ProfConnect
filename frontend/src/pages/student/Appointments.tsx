@@ -9,9 +9,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import RescheduleModal from '@/components/modals/RescheduleModal';
+import RescheduleModalNew from '@/components/booking/RescheduleModal';
 import AddNotesModal from '@/components/modals/AddNotesModal';
 import { useToast } from '@/hooks/use-toast';
-import { getAppointments, cancelAppointment } from '@/api/appointments';
+import { getAppointments, cancelAppointment, requestReschedule } from '@/api/appointments';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 
@@ -37,6 +38,14 @@ const StudentAppointments = () => {
     open: boolean;
     appointment: Appointment | null;
   }>({ open: false, appointment: null });
+  const [newRescheduleModal, setNewRescheduleModal] = useState<{
+    open: boolean;
+    appointmentId: number;
+    facultyId: number;
+    title: string;
+    date: string;
+    slot: string;
+  } | null>(null);
   const [notesModal, setNotesModal] = useState<{
     open: boolean;
     appointment: Appointment | null;
@@ -81,6 +90,31 @@ const StudentAppointments = () => {
         description: 'Failed to cancel appointment',
         variant: 'destructive',
       });
+    }
+  });
+
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { date: string; slot: string } }) =>
+      requestReschedule(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        description: 'Reschedule request sent',
+      });
+      setNewRescheduleModal(null);
+    },
+    onError: (err: any) => {
+      if (err.response?.status === 409) {
+        toast({
+          description: 'Selected slot is no longer available.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          description: 'Failed to request reschedule.',
+          variant: 'destructive',
+        });
+      }
     }
   });
   const getFilteredAppointments = () => {
@@ -135,6 +169,26 @@ const StudentAppointments = () => {
       description: `New time: ${new Date(newDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${newTime}`,
     });
     setRescheduleModal({ open: false, appointment: null });
+  };
+
+  const handleNewReschedule = (appointmentId: number, facultyId: number, title: string, date: string, slot: string) => {
+    setNewRescheduleModal({
+      open: true,
+      appointmentId,
+      facultyId,
+      title,
+      date,
+      slot
+    });
+  };
+
+  const handleRescheduleSubmit = (data: { date: string; slot: string }) => {
+    if (newRescheduleModal) {
+      rescheduleMutation.mutate({
+        id: newRescheduleModal.appointmentId,
+        data
+      });
+    }
   };
 
   const handleSaveNotes = (notes: string) => {
@@ -242,15 +296,22 @@ const StudentAppointments = () => {
                                 {getStatusBadge(appointment.status)}
                                 
                                 <div className="flex flex-wrap gap-2">
-                                  {!isPast && (appointment.status === 'ACCEPTED' || appointment.status === 'PENDING') && (
+                                  {!isPast && appointment.status !== 'RESCHEDULE_REQUESTED' && (appointment.status === 'ACCEPTED' || appointment.status === 'PENDING') && (
                                     <>
                                       {appointment.status === 'ACCEPTED' && (
                                         <Button 
                                           size="sm" 
                                           variant="outline" 
-                                          onClick={() => setRescheduleModal({ open: true, appointment })}
+                                          onClick={() => handleNewReschedule(
+                                            appointment.id, 
+                                            appointment.facultyId, 
+                                            appointment.title, 
+                                            appointment.date, 
+                                            appointment.slot || appointment.time
+                                          )}
+                                          disabled={rescheduleMutation.isPending}
                                         >
-                                          Reschedule
+                                          {rescheduleMutation.isPending ? 'Requesting...' : 'Request Reschedule'}
                                         </Button>
                                       )}
                                       <Button 
@@ -305,6 +366,20 @@ const StudentAppointments = () => {
           currentDate={rescheduleModal.appointment.date}
           currentTime={rescheduleModal.appointment.time}
           onConfirm={handleReschedule}
+        />
+      )}
+
+      {/* New Reschedule Modal */}
+      {newRescheduleModal && (
+        <RescheduleModalNew
+          open={newRescheduleModal.open}
+          onOpenChange={(open) => setNewRescheduleModal(open ? newRescheduleModal : null)}
+          appointmentId={newRescheduleModal.appointmentId}
+          facultyId={newRescheduleModal.facultyId}
+          currentTitle={newRescheduleModal.title}
+          currentDate={newRescheduleModal.date}
+          currentSlot={newRescheduleModal.slot}
+          onSubmit={handleRescheduleSubmit}
         />
       )}
 

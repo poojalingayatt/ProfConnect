@@ -31,3 +31,18 @@ export const acceptAppointment = async (id: number) => {
 export const rejectAppointment = async (id: number) => {
   await api.patch(`/appointments/${id}/reject`);
 };
+
+export const requestReschedule = async (
+  id: number,
+  payload: { date: string; slot: string }
+) => {
+  await api.patch(`/appointments/${id}/request-reschedule`, payload);
+};
+
+export const approveReschedule = async (id: number) => {
+  await api.patch(`/appointments/${id}/approve-reschedule`);
+};
+
+export const rejectReschedule = async (id: number) => {
+  await api.patch(`/appointments/${id}/reject-reschedule`);
+};
