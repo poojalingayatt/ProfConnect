@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { queryKeys } from '@/lib/queryKeys';
-import { Search, Filter, Star, MapPin, Heart, X, Calendar, Clock, Check } from 'lucide-react';
+import { Search, Filter, Star, MapPin, Heart, X } from 'lucide-react';
+import BookingModal from '@/components/booking/BookingModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -63,12 +64,6 @@ const FindFaculty = () => {
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
   const [selectedFaculty, setSelectedFaculty] = useState<FacultyListItem | null>(null);
-  const [bookingStep, setBookingStep] = useState(0);
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedDay, setSelectedDay] = useState('');
-  const [selectedSlot, setSelectedSlot] = useState('');
-  const [appointmentTitle, setAppointmentTitle] = useState('');
-  const [appointmentDescription, setAppointmentDescription] = useState('');
 
   // Stabilize query key filters to prevent unnecessary cache invalidation
   const filters = useMemo(() => ({
@@ -178,40 +173,10 @@ const FindFaculty = () => {
     followMutation.mutate({ facultyId, isFollowing: isCurrentlyFollowing });
   };
 
-  const handleBookAppointment = () => {
-    toast({
-      title: 'Appointment Booked!',
-      description: `Your appointment with ${selectedFaculty?.name} has been requested.`,
-    });
-    setSelectedFaculty(null);
-    setBookingStep(0);
-    setSelectedDate('');
-    setSelectedDay('');
-    setSelectedSlot('');
-    setAppointmentTitle('');
-    setAppointmentDescription('');
-  };
-
   const clearFilters = () => {
     setSearchQuery('');
     setDepartmentFilter('all');
     setAvailabilityFilter('all');
-  };
-
-  // Get next 7 days for booking
-  const getNextDays = () => {
-    const days = [];
-    for (let i = 1; i <= 14; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      days.push({
-        date: date.toISOString().split('T')[0],
-        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        dayNum: date.getDate(),
-        month: date.toLocaleDateString('en-US', { month: 'short' }),
-      });
-    }
-    return days;
   };
 
   return (
@@ -357,19 +322,13 @@ const FindFaculty = () => {
                       <Button
                         variant="outline"
                         className="flex-1"
-                        onClick={() => {
-                          setSelectedFaculty(f);
-                          setBookingStep(0);
-                        }}
+                        onClick={() => setSelectedFaculty(f)}
                       >
                         View Profile
                       </Button>
                       <Button
                         className="flex-1"
-                        onClick={() => {
-                          setSelectedFaculty(f);
-                          setBookingStep(1);
-                        }}
+                        onClick={() => setSelectedFaculty(f)}
                       >
                         Book
                       </Button>
@@ -392,259 +351,14 @@ const FindFaculty = () => {
           </div>
         )}
 
-        {/* Faculty Profile / Booking Modal */}
-        <Dialog
+        {/* Booking Modal */}
+        <BookingModal
           open={!!selectedFaculty}
-          onOpenChange={() => {
-            setSelectedFaculty(null);
-            setBookingStep(0);
-            setSelectedDate('');
-            setSelectedDay('');
-            setSelectedSlot('');
-          }}
-        >
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            {selectedFaculty && (
-              <>
-                {bookingStep === 0 ? (
-                  // Profile View
-                  <>
-                    <DialogHeader>
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-20 w-20">
-                          <AvatarImage src={selectedFaculty.avatar} />
-                          <AvatarFallback className="text-2xl">{selectedFaculty.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <DialogTitle className="text-xl">{selectedFaculty.name}</DialogTitle>
-                          <DialogDescription className="mt-1">
-                            {selectedFaculty.department}
-                          </DialogDescription>
-                          <div className="flex items-center gap-4 mt-2">
-                            <span className="flex items-center gap-1 text-sm">
-                              <Star className="h-4 w-4 fill-warning text-warning" />
-                              {selectedFaculty.facultyProfile.rating} ({selectedFaculty.facultyProfile.reviewCount} reviews)
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              {selectedFaculty.followerCount} followers
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </DialogHeader>
-
-                    <div className="space-y-6 mt-4">
-                      {/* Bio */}
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">About</h4>
-                        <p className="text-sm text-muted-foreground">{selectedFaculty.bio}</p>
-                      </div>
-
-                      {/* Qualifications */}
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Qualifications</h4>
-                        <ul className="space-y-1">
-                          {selectedFaculty.qualifications.map((q, i) => (
-                            <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
-                              <Check className="h-4 w-4 text-success" />
-                              {q}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Specializations */}
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Specializations</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedFaculty.facultyProfile.specializations.map(spec => (
-                            <Badge key={spec.id} variant="secondary">{spec.name}</Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Office Location */}
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Office Location</h4>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          {selectedFaculty.officeLocation}
-                        </p>
-                      </div>
-
-                      {/* Availability Preview */}
-                      <div>
-                        <h4 className="font-medium text-foreground mb-2">Weekly Availability</h4>
-                        <div className="grid grid-cols-5 gap-2">
-                          {selectedFaculty.availability.slice(0, 5).map(avail => (
-                            <div key={avail.day} className="text-center p-2 rounded-lg bg-accent/50">
-                              <p className="text-xs font-medium text-foreground">{avail.day.slice(0, 3)}</p>
-                              <p className="text-xs text-muted-foreground">{avail.slots.length} slots</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex gap-3 pt-4 border-t">
-                        <Button
-                          variant={isFollowing(selectedFaculty.id) ? 'outline' : 'secondary'}
-                          onClick={() => toggleFollow(selectedFaculty.id)}
-                          disabled={followMutation.isPending}
-                        >
-                          <Heart className={`mr-2 h-4 w-4 ${isFollowing(selectedFaculty.id) ? 'fill-current' : ''}`} />
-                          {isFollowing(selectedFaculty.id) ? 'Following' : 'Follow'}
-                        </Button>
-                        <Button className="flex-1" onClick={() => setBookingStep(1)}>
-                          Book Appointment
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                ) : bookingStep === 1 ? (
-                  // Date Selection
-                  <>
-                    <DialogHeader>
-                      <DialogTitle>Select Date</DialogTitle>
-                      <DialogDescription>Choose a date for your appointment with {selectedFaculty.name}</DialogDescription>
-                    </DialogHeader>
-
-                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-4">
-                      {getNextDays().map(d => (
-                        <button
-                          key={d.date}
-                          onClick={() => {
-                            setSelectedDate(d.date);
-                            setSelectedDay(
-                              new Date(d.date).toLocaleDateString('en-US', { weekday: 'long' })
-                            );
-                            setSelectedSlot('');
-                            setBookingStep(2);
-                          }}
-                          className={`p-3 rounded-lg border text-center transition-colors ${
-                            selectedDate === d.date
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-card hover:bg-accent border-border'
-                          }`}
-                        >
-                          <p className="text-xs font-medium">{d.day}</p>
-                          <p className="text-lg font-bold">{d.dayNum}</p>
-                          <p className="text-xs">{d.month}</p>
-                        </button>
-                      ))}
-                    </div>
-
-                    <Button variant="outline" className="mt-4" onClick={() => setBookingStep(0)}>
-                      Back to Profile
-                    </Button>
-                  </>
-                ) : bookingStep === 2 ? (
-                  // Time Slot Selection
-                  <>
-                    <DialogHeader>
-                      <DialogTitle>Select Time Slot</DialogTitle>
-                      <DialogDescription>
-                        Available slots for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    {(() => {
-                      const dayAvailability = selectedFaculty.availability.find(a => a.day === selectedDay);
-                      const slots = dayAvailability?.slots || [];
-
-                      if (slots.length === 0) {
-                        return (
-                          <div className="mt-4 p-4 rounded-lg bg-accent/50 text-sm text-muted-foreground">
-                            No slots available for {selectedDay || 'this day'}. Please choose another date.
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="flex flex-wrap gap-2 mt-4">
-                          {slots.map(slot => (
-                            <button
-                              key={slot}
-                              onClick={() => { setSelectedSlot(slot); setBookingStep(3); }}
-                              className={`px-4 py-2 rounded-lg border transition-colors ${
-                                selectedSlot === slot
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-card hover:bg-accent border-border'
-                              }`}
-                            >
-                              {slot}
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })()}
-
-                    <Button variant="outline" className="mt-4" onClick={() => setBookingStep(1)}>
-                      Back
-                    </Button>
-                  </>
-                ) : (
-                  // Appointment Details
-                  <>
-                    <DialogHeader>
-                      <DialogTitle>Appointment Details</DialogTitle>
-                      <DialogDescription>
-                        {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {selectedSlot}
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4 mt-4">
-                      <div>
-                        <Label htmlFor="title">Title</Label>
-                        <Input
-                          id="title"
-                          placeholder="e.g., Doubt Session - Data Structures"
-                          value={appointmentTitle}
-                          onChange={(e) => setAppointmentTitle(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          placeholder="Tell the faculty what you'd like to discuss..."
-                          value={appointmentDescription}
-                          onChange={(e) => setAppointmentDescription(e.target.value)}
-                          rows={3}
-                        />
-                      </div>
-
-                      <div className="p-4 rounded-lg bg-accent/50 space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          {selectedSlot}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          {selectedFaculty.officeLocation}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3 pt-4">
-                        <Button variant="outline" onClick={() => setBookingStep(2)}>
-                          Back
-                        </Button>
-                        <Button className="flex-1" onClick={handleBookAppointment} disabled={!appointmentTitle}>
-                          Confirm Booking
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
+          onClose={() => setSelectedFaculty(null)}
+          facultyId={selectedFaculty?.id ?? 0}
+          facultyName={selectedFaculty?.name ?? ""}
+          faculty={selectedFaculty}
+        />
       </div>
     </DashboardLayout>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Clock, MapPin, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,24 +9,90 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
+import { getAppointments, acceptAppointment, rejectAppointment, cancelAppointment } from '@/api/appointments';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 
 const FacultyAppointments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'upcoming' | 'completed'>('all');
 
-  const facultyAppointments: any[] = [];
+  const {
+    data: facultyAppointments = [],
+    isLoading,
+    isError
+  } = useQuery({
+    queryKey: ['appointments'],
+    queryFn: getAppointments
+  });
   
   const now = new Date();
-  const pendingAppointments = facultyAppointments.filter(a => a.status === 'pending');
+  const pendingAppointments = facultyAppointments.filter(a => a.status === 'PENDING');
   const upcomingAppointments = facultyAppointments.filter(
-    a => a.status === 'accepted' && new Date(a.date) >= now
+    a => a.status === 'ACCEPTED' && new Date(a.date) >= now
   );
   const completedAppointments = facultyAppointments.filter(
-    a => a.status === 'completed' || a.status === 'cancelled' || a.status === 'rejected'
+    a => a.status === 'COMPLETED' || a.status === 'CANCELLED' || a.status === 'REJECTED'
   );
+
+  const statusMap: Record<string, string> = {
+    PENDING: 'Pending',
+    ACCEPTED: 'Accepted',
+    REJECTED: 'Rejected',
+    CANCELLED: 'Cancelled',
+    COMPLETED: 'Completed',
+    RESCHEDULE_REQUESTED: 'Reschedule Requested'
+  };
+
+  const acceptMutation = useMutation({
+    mutationFn: acceptAppointment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        description: 'Appointment accepted',
+      });
+    },
+    onError: () => {
+      toast({
+        description: 'Failed to accept appointment',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: rejectAppointment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        description: 'Appointment rejected',
+      });
+    },
+    onError: () => {
+      toast({
+        description: 'Failed to reject appointment',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelAppointment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        description: 'Appointment cancelled',
+      });
+    },
+    onError: () => {
+      toast({
+        description: 'Failed to cancel appointment',
+        variant: 'destructive',
+      });
+    }
+  });
 
   const getFilteredAppointments = () => {
     switch (activeTab) {
@@ -40,8 +107,19 @@ const FacultyAppointments = () => {
     }
   };
 
-  const getStudentInfo = (studentId: number) => {
-    return undefined as any;
+  // Student info now comes from backend appointment.student.name
+  const getStudentInfo = (appointment: any) => {
+    if (appointment.student?.name) {
+      return {
+        name: appointment.student.name,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${appointment.student.name}`
+      };
+    }
+    // Fallback if backend data missing
+    return {
+      name: `Student ${appointment.studentId}`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Student${appointment.studentId}`
+    };
   };
 
   const getStatusBadge = (status: AppointmentStatus) => {
@@ -54,30 +132,21 @@ const FacultyAppointments = () => {
     };
     return (
       <Badge className={styles[status]}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {statusMap[status.toUpperCase()] || status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
   const handleAccept = (appointmentId: number) => {
-    toast({
-      title: 'Appointment Accepted',
-      description: 'The student has been notified.',
-    });
+    acceptMutation.mutate(appointmentId);
   };
 
   const handleReject = (appointmentId: number) => {
-    toast({
-      variant: 'destructive',
-      title: 'Appointment Rejected',
-      description: 'The student has been notified.',
-    });
+    rejectMutation.mutate(appointmentId);
   };
 
   const handleCancel = (appointmentId: number) => {
-    toast({
-      description: 'Appointment cancelled successfully',
-    });
+    cancelMutation.mutate(appointmentId);
   };
 
   const filteredAppointments = getFilteredAppointments();
@@ -108,7 +177,15 @@ const FacultyAppointments = () => {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
-            {filteredAppointments.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+              </div>
+            ) : isError ? (
+              <div className="text-center py-12">
+                <p className="text-destructive">Failed to load appointments.</p>
+              </div>
+            ) : filteredAppointments.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium text-foreground">No appointments found</h3>
@@ -123,9 +200,9 @@ const FacultyAppointments = () => {
             ) : (
               <div className="space-y-4">
                 {filteredAppointments.map(appointment => {
-                  const student = getStudentInfo(appointment.studentId);
-                  const isPending = appointment.status === 'pending';
-                  const isAccepted = appointment.status === 'accepted';
+                  const student = getStudentInfo(appointment);
+                  const isPending = appointment.status === 'PENDING';
+                  const isAccepted = appointment.status === 'ACCEPTED';
 
                   return (
                     <Card 
@@ -161,11 +238,11 @@ const FacultyAppointments = () => {
                                   <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
-                                      {appointment.time} ({appointment.duration} min)
+                                      {appointment.slot || appointment.time} ({appointment.duration || 60} min)
                                     </span>
                                     <span className="flex items-center gap-1">
                                       <MapPin className="h-3 w-3" />
-                                      {appointment.location}
+                                      {appointment.location || 'Online'}
                                     </span>
                                   </div>
                                 </div>
@@ -176,20 +253,36 @@ const FacultyAppointments = () => {
                                 
                                 {isPending && (
                                   <div className="flex gap-2">
-                                    <Button size="sm" variant="success" onClick={() => handleAccept(appointment.id)}>
+                                    <Button 
+                                      size="sm" 
+                                      variant="success" 
+                                      onClick={() => handleAccept(appointment.id)}
+                                      disabled={acceptMutation.isPending}
+                                    >
                                       <Check className="h-4 w-4 mr-1" />
-                                      Accept
+                                      {acceptMutation.isPending ? 'Accepting...' : 'Accept'}
                                     </Button>
-                                    <Button size="sm" variant="outline" onClick={() => handleReject(appointment.id)}>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      onClick={() => handleReject(appointment.id)}
+                                      disabled={rejectMutation.isPending}
+                                    >
                                       <X className="h-4 w-4 mr-1" />
-                                      Reject
+                                      {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
                                     </Button>
                                   </div>
                                 )}
 
                                 {isAccepted && new Date(appointment.date) >= now && (
-                                  <Button size="sm" variant="outline" className="text-destructive" onClick={() => handleCancel(appointment.id)}>
-                                    Cancel
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="text-destructive" 
+                                    onClick={() => handleCancel(appointment.id)}
+                                    disabled={cancelMutation.isPending}
+                                  >
+                                    {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
                                   </Button>
                                 )}
                               </div>

@@ -106,12 +106,30 @@ exports.getMyAppointments = async (user) => {
   if (user.role === 'STUDENT') {
     return await prisma.appointment.findMany({
       where: { studentId: user.id },
+      include: {
+        faculty: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
     });
   }
 
   if (user.role === 'FACULTY') {
     return await prisma.appointment.findMany({
       where: { facultyId: user.id },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
     });
   }
 

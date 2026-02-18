@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Clock, MapPin, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import RescheduleModal from '@/components/modals/RescheduleModal';
 import AddNotesModal from '@/components/modals/AddNotesModal';
 import { useToast } from '@/hooks/use-toast';
+import { getAppointments, cancelAppointment } from '@/api/appointments';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 
@@ -29,6 +31,7 @@ type Appointment = {
 const StudentAppointments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('all');
   const [rescheduleModal, setRescheduleModal] = useState<{
     open: boolean;
@@ -39,16 +42,47 @@ const StudentAppointments = () => {
     appointment: Appointment | null;
   }>({ open: false, appointment: null });
 
-  const studentAppointments: Appointment[] = [];
+  const {
+    data: studentAppointments = [],
+    isLoading,
+    isError
+  } = useQuery({
+    queryKey: ['appointments'],
+    queryFn: getAppointments
+  });
 
   const now = new Date();
   const upcomingAppointments = studentAppointments.filter(
-    a => new Date(a.date) >= now && (a.status === 'accepted' || a.status === 'pending')
+    a => new Date(a.date) >= now && (a.status === 'ACCEPTED' || a.status === 'PENDING')
   );
   const pastAppointments = studentAppointments.filter(
-    a => new Date(a.date) < now || a.status === 'completed' || a.status === 'cancelled' || a.status === 'rejected'
+    a => new Date(a.date) < now || a.status === 'COMPLETED' || a.status === 'CANCELLED' || a.status === 'REJECTED'
   );
 
+  const statusMap: Record<string, string> = {
+    PENDING: 'Pending',
+    ACCEPTED: 'Accepted',
+    REJECTED: 'Rejected',
+    CANCELLED: 'Cancelled',
+    COMPLETED: 'Completed',
+    RESCHEDULE_REQUESTED: 'Reschedule Requested'
+  };
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelAppointment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({
+        description: 'Appointment cancelled',
+      });
+    },
+    onError: () => {
+      toast({
+        description: 'Failed to cancel appointment',
+        variant: 'destructive',
+      });
+    }
+  });
   const getFilteredAppointments = () => {
     switch (activeTab) {
       case 'upcoming':
@@ -60,8 +94,19 @@ const StudentAppointments = () => {
     }
   };
 
-  const getFacultyInfo = (facultyId: number) => {
-    return undefined as any;
+  // Faculty info now comes from backend appointment.faculty.name
+  const getFacultyInfo = (appointment: any) => {
+    if (appointment.faculty?.name) {
+      return {
+        name: appointment.faculty.name,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${appointment.faculty.name}`
+      };
+    }
+    // Fallback if backend data missing
+    return {
+      name: `Faculty ${appointment.facultyId}`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Faculty${appointment.facultyId}`
+    };
   };
 
   const getStatusBadge = (status: AppointmentStatus) => {
@@ -75,15 +120,13 @@ const StudentAppointments = () => {
 
     return (
       <Badge className={styles[status]}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {statusMap[status.toUpperCase()] || status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
   const handleCancel = (appointmentId: number) => {
-    toast({
-      description: 'Appointment cancelled successfully',
-    });
+    cancelMutation.mutate(appointmentId);
   };
 
   const handleReschedule = (newDate: string, newTime: string, reason: string) => {
@@ -127,7 +170,15 @@ const StudentAppointments = () => {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
-            {filteredAppointments.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+              </div>
+            ) : isError ? (
+              <div className="text-center py-12">
+                <p className="text-destructive">Failed to load appointments.</p>
+              </div>
+            ) : filteredAppointments.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium text-foreground">No appointments found</h3>
@@ -142,10 +193,10 @@ const StudentAppointments = () => {
             ) : (
               <div className="space-y-4">
                 {filteredAppointments.map(appointment => {
-                  const facultyMember = getFacultyInfo(appointment.facultyId);
+                  const facultyMember = getFacultyInfo(appointment);
                   const isPast = new Date(appointment.date) < now;
-                  const isCompleted = appointment.status === 'completed';
-
+                  const isCompleted = appointment.status === 'COMPLETED';
+                
                   return (
                     <Card key={appointment.id} className="overflow-hidden">
                       <CardContent className="p-0">
@@ -162,7 +213,7 @@ const StudentAppointments = () => {
                               {new Date(appointment.date).toLocaleDateString('en-US', { month: 'short' })}
                             </p>
                           </div>
-
+                
                           {/* Main content */}
                           <div className="flex-1 p-4 sm:p-6">
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -177,11 +228,11 @@ const StudentAppointments = () => {
                                   <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
-                                      {appointment.time} ({appointment.duration} min)
+                                      {appointment.slot || appointment.time} ({appointment.duration || 60} min)
                                     </span>
                                     <span className="flex items-center gap-1">
                                       <MapPin className="h-3 w-3" />
-                                      {appointment.location}
+                                      {appointment.location || 'Online'}
                                     </span>
                                   </div>
                                 </div>
@@ -191,9 +242,9 @@ const StudentAppointments = () => {
                                 {getStatusBadge(appointment.status)}
                                 
                                 <div className="flex flex-wrap gap-2">
-                                  {!isPast && (appointment.status === 'accepted' || appointment.status === 'pending') && (
+                                  {!isPast && (appointment.status === 'ACCEPTED' || appointment.status === 'PENDING') && (
                                     <>
-                                      {appointment.status === 'accepted' && (
+                                      {appointment.status === 'ACCEPTED' && (
                                         <Button 
                                           size="sm" 
                                           variant="outline" 
@@ -207,8 +258,9 @@ const StudentAppointments = () => {
                                         variant="outline" 
                                         className="text-destructive" 
                                         onClick={() => handleCancel(appointment.id)}
+                                        disabled={cancelMutation.isPending}
                                       >
-                                        Cancel
+                                        {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
                                       </Button>
                                     </>
                                   )}
