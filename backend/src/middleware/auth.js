@@ -12,6 +12,7 @@ function authenticate(req, _res, next) {
     const [type, token] = header.split(' ');
 
     if (!type || type.toLowerCase() !== 'bearer' || !token) {
+      console.error('Auth Error: Missing or invalid Authorization header:', { header, method: req.method, url: req.url });
       return next(createHttpError(401, 'Missing or invalid Authorization header'));
     }
 
@@ -24,6 +25,7 @@ function authenticate(req, _res, next) {
 
     return next();
   } catch (err) {
+    console.error('Auth Error: Token verification failed:', { error: err.message, method: req.method, url: req.url });
     if (err && err.statusCode && err.statusCode >= 500) {
       return next(err);
     }

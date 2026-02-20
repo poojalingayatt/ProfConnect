@@ -63,6 +63,10 @@ const App = () => (
               }
             />
             <Route
+              path="/student/faculty"
+              element={<Navigate to="/student/find-faculty" replace />}
+            />
+            <Route
               path="/student/appointments"
               element={
                 <ProtectedRoute allowedUserType="STUDENT">

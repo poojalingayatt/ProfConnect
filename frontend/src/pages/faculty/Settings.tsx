@@ -12,10 +12,21 @@ import { Badge } from '@/components/ui/badge';
 import { Camera, X, Plus } from 'lucide-react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { facultyApi } from '@/api/faculty';
+import { queryKeys } from '@/lib/queryKeys';
 
 const FacultySettings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Fetch faculty profile data
+  const { data: facultyData, isLoading, isError } = useQuery({
+    queryKey: queryKeys.facultyProfile(user?.id),
+    queryFn: facultyApi.getMyProfile,
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  });
   
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState('');
@@ -67,6 +78,26 @@ const FacultySettings = () => {
     });
   };
 
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-destructive">Error loading profile. Please try again later.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in max-w-4xl">
@@ -95,7 +126,7 @@ const FacultySettings = () => {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="h-20 w-20">
-                      <AvatarImage src={user?.avatar} />
+                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} />
                       <AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <button className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
@@ -104,7 +135,7 @@ const FacultySettings = () => {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">{user?.name}</p>
-                    <p className="text-sm text-muted-foreground">{facultyData?.department}</p>
+                    <p className="text-sm text-muted-foreground">{user?.department ?? "Department not set"}</p>
                   </div>
                 </div>
 

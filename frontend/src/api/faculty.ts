@@ -43,4 +43,14 @@ export const facultyApi = {
     const response = await api.get('/follows/my-followed');
     return response.data.map((faculty: any) => faculty.id) as number[];
   },
+
+  getMyProfile: async () => {
+    const response = await api.get('/faculty/profile');
+    return response.data;
+  },
+
+  updateProfile: async (data: any) => {
+    const response = await api.patch('/faculty/profile', data);
+    return response.data;
+  },
 };

@@ -23,10 +23,12 @@ exports.createAppointment = async (req, res, next) => {
 
 exports.getMyAppointments = async (req, res, next) => {
   try {
+    console.log('Getting appointments for user:', req.user?.id, 'Role:', req.user?.role);
     const data = await appointmentsService.getMyAppointments(req.user);
 
     res.json({ appointments: data });
   } catch (error) {
+    console.error('Error getting appointments:', error.message);
     next(error);
   }
 };

@@ -140,6 +140,8 @@ model Notification {
 
   @@index([userId])
   @@index([read])
+  @@index([userId, createdAt])
+  @@index([userId, read, createdAt])
 }
 
 model Review {

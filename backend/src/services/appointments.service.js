@@ -88,20 +88,26 @@ exports.createAppointment = async (user, data) => {
 /**
  * Get my appointments
  */
+let lastAutoCompleteCheck = new Date(0); // Initialize to epoch time
+
 exports.getMyAppointments = async (user) => {
 
   const now = new Date();
-
-  // Auto-complete past accepted appointments
-  await prisma.appointment.updateMany({
-    where: {
-      status: 'ACCEPTED',
-      date: { lt: now },
-    },
-    data: {
-      status: 'COMPLETED',
-    },
-  });
+  
+  // Run auto-completion only once per minute to improve performance
+  if (now.getTime() - lastAutoCompleteCheck.getTime() > 60000) {
+    // Auto-complete past accepted appointments
+    await prisma.appointment.updateMany({
+      where: {
+        status: 'ACCEPTED',
+        date: { lt: now },
+      },
+      data: {
+        status: 'COMPLETED',
+      },
+    });
+    lastAutoCompleteCheck = now;
+  }
 
   if (user.role === 'STUDENT') {
     return await prisma.appointment.findMany({

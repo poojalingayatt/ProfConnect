@@ -7,6 +7,7 @@ export const queryKeys = {
   facultyDetail: (id: number) => ['faculty', 'detail', id] as const,
   facultyFollowed: () => ['faculty', 'followed'] as const,
   facultyFollowers: () => ['faculty', 'followers'] as const,
+  facultyProfile: (userId?: number) => ['faculty', 'profile', userId] as const,
   
   // User related queries
   userProfile: () => ['user', 'profile'] as const,
