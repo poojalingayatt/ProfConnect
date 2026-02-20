@@ -43,13 +43,7 @@ interface FacultyListItem {
     isOnline: boolean;
     specializations: { id: number; name: string }[];
   };
-  officeLocation: string;
-  availability: { day: string; slots: string[] }[];
-  announcements: { date: string; title: string }[];
-  qualifications: string[];
   avatar?: string;
-  bio?: string;
-  followerCount: number;
   // Access nested properties directly: faculty.facultyProfile.rating
 };
 
@@ -94,21 +88,23 @@ const FindFaculty = () => {
     ...faculty,
     // Only add computed display properties that don't exist in backend
     avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${faculty.name}`,
-    officeLocation: 'Building A, Room 101', // TODO: Replace with actual office location from backend
-    availability: [], // TODO: Replace with actual availability from backend
-    announcements: [], // TODO: Replace with actual announcements from backend
-    qualifications: ['Ph.D. in Computer Science'], // TODO: Replace with actual qualifications from backend
-    followerCount: 0, // TODO: Replace with actual follower count from backend
     // Access nested properties directly: faculty.facultyProfile.rating
   }));
 
   // Get departments for filter dropdown
   const departments = ['all', ...new Set(facultyList.map(f => f.department || 'Unknown'))];
   
-  // Function to get follow status - placeholder implementation
+  const { user } = useAuth();
+  
+  // Get user's followed faculty IDs
+  const { data: followedIds = [], isLoading: followedLoading } = useQuery({
+    queryKey: ['followedFacultyIds'],
+    queryFn: facultyApi.getMyFollowedIds,
+    enabled: !!user,
+  });
+
   const isFollowing = (facultyId: number) => {
-    // This would come from backend, for now using a placeholder
-    return false; // TODO: Replace with actual follow status from backend
+    return followedIds.includes(facultyId);
   };
 
   // Follow/unfollow mutation with proper optimistic update and rollback
@@ -148,7 +144,7 @@ const FindFaculty = () => {
         queryKey: queryKeys.facultyList() 
       });
       queryClient.invalidateQueries({ 
-        queryKey: queryKeys.facultyFollowed() 
+        queryKey: ['followedFacultyIds'] 
       });
       toast({
         description: 'Follow status updated successfully'
@@ -324,11 +320,7 @@ const FindFaculty = () => {
                       ))}
                     </div>
 
-                    {/* Location */}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      {f.officeLocation}
-                    </div>
+                    {/* Location - Backend will provide when available */}
 
                     {/* Actions */}
                     <div className="flex gap-3 pt-2">
@@ -370,7 +362,6 @@ const FindFaculty = () => {
           onClose={() => setSelectedFaculty(null)}
           facultyId={selectedFaculty?.id ?? 0}
           facultyName={selectedFaculty?.name ?? ""}
-          faculty={selectedFaculty}
         />
 
         {/* Faculty Profile Modal */}
@@ -430,14 +421,7 @@ const FindFaculty = () => {
                   </div>
                 </div>
 
-                {/* Location */}
-                <div>
-                  <h4 className="font-medium mb-2">Location</h4>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    {selectedFaculty.officeLocation}
-                  </div>
-                </div>
+                {/* Location - Backend will provide when available */}
 
                 {/* Reviews Section */}
                 <div>

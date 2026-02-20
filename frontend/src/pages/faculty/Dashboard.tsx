@@ -13,11 +13,9 @@ const FacultyDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const facultyAppointments: any[] = [];
   const pendingAppointments: any[] = [];
   const upcomingAppointments: any[] = [];
   const completedCount = 0;
-
   const followerCount = 0;
 
   const getStudentInfo = (studentId: number) => {
@@ -39,11 +37,7 @@ const FacultyDashboard = () => {
     });
   };
 
-  // Today's appointments
-  const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = facultyAppointments.filter(
-    a => a.date === today && a.status === 'accepted'
-  );
+  const todayAppointments: any[] = [];
 
   return (
     <DashboardLayout>

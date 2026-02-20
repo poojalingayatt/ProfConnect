@@ -22,11 +22,11 @@ const StudentDashboard = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'accepted':
+      case 'ACCEPTED':
         return <Badge className="bg-success/10 text-success border-success/20">Accepted</Badge>;
-      case 'pending':
+      case 'PENDING':
         return <Badge className="bg-warning/10 text-warning border-warning/20">Pending</Badge>;
-      case 'completed':
+      case 'COMPLETED':
         return <Badge className="bg-muted text-muted-foreground">Completed</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -130,7 +130,7 @@ const StudentDashboard = () => {
                 ) : (
                   <div className="space-y-4">
                     {upcomingAppointments.slice(0, 3).map(appointment => {
-                      const facultyMember = faculty.find(f => f.id === appointment.facultyId);
+                      const facultyMember = undefined; // Will be fetched from backend
                       return (
                         <div
                           key={appointment.id}

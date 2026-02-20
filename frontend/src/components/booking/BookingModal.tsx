@@ -44,7 +44,7 @@ interface BookingModalProps {
   onClose: () => void;
   facultyId: number;
   facultyName: string;
-  faculty: FacultyListItem | null;
+  faculty?: FacultyListItem | null;
 }
 
 const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: BookingModalProps) => {

@@ -38,4 +38,9 @@ export const facultyApi = {
     const response = await api.get('/follows/my-followers');
     return response.data as Faculty[];
   },
+
+  getMyFollowedIds: async () => {
+    const response = await api.get('/follows/my-followed');
+    return response.data.map((faculty: any) => faculty.id) as number[];
+  },
 };
