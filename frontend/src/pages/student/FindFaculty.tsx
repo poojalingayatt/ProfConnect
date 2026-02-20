@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { queryKeys } from '@/lib/queryKeys';
-import { Search, Filter, Star, MapPin, Heart, X } from 'lucide-react';
+import { Search, Filter, Star, MapPin, Heart, X, Calendar, Clock } from 'lucide-react';
 import BookingModal from '@/components/booking/BookingModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { facultyApi } from '@/api/faculty';
 import { Faculty } from '@/types/faculty';
+import { getFacultyReviews } from '@/api/reviews';
 
 interface FacultyListItem {
   id: number;
@@ -64,6 +65,7 @@ const FindFaculty = () => {
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<string>('all');
   const [selectedFaculty, setSelectedFaculty] = useState<FacultyListItem | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // Stabilize query key filters to prevent unnecessary cache invalidation
   const filters = useMemo(() => ({
@@ -172,6 +174,17 @@ const FindFaculty = () => {
     
     followMutation.mutate({ facultyId, isFollowing: isCurrentlyFollowing });
   };
+
+  const handleViewProfile = (faculty: FacultyListItem) => {
+    setSelectedFaculty(faculty);
+    setProfileModalOpen(true);
+  };
+
+  const { data: facultyReviews = [], isLoading: reviewsLoading } = useQuery({
+    queryKey: ['facultyReviews', selectedFaculty?.id],
+    queryFn: () => selectedFaculty?.id ? getFacultyReviews(selectedFaculty.id) : [],
+    enabled: !!selectedFaculty?.id && profileModalOpen,
+  });
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -322,7 +335,7 @@ const FindFaculty = () => {
                       <Button
                         variant="outline"
                         className="flex-1"
-                        onClick={() => setSelectedFaculty(f)}
+                        onClick={() => handleViewProfile(f)}
                       >
                         View Profile
                       </Button>
@@ -353,12 +366,154 @@ const FindFaculty = () => {
 
         {/* Booking Modal */}
         <BookingModal
-          open={!!selectedFaculty}
+          open={!!selectedFaculty && !profileModalOpen}
           onClose={() => setSelectedFaculty(null)}
           facultyId={selectedFaculty?.id ?? 0}
           facultyName={selectedFaculty?.name ?? ""}
           faculty={selectedFaculty}
         />
+
+        {/* Faculty Profile Modal */}
+        <Dialog open={profileModalOpen} onOpenChange={setProfileModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Faculty Profile</DialogTitle>
+              <DialogDescription>
+                {selectedFaculty?.name} - {selectedFaculty?.department}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedFaculty && (
+              <div className="space-y-6">
+                {/* Profile Header */}
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={selectedFaculty.avatar} />
+                    <AvatarFallback className="text-2xl">{selectedFaculty.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-semibold">{selectedFaculty.name}</h3>
+                    <p className="text-muted-foreground">{selectedFaculty.department}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-1">
+                        <Star className="h-5 w-5 fill-warning text-warning" />
+                        <span className="font-medium">{selectedFaculty.facultyProfile.rating}</span>
+                        <span className="text-muted-foreground text-sm">
+                          ({selectedFaculty.facultyProfile.reviewCount} reviews)
+                        </span>
+                      </div>
+                      <div className={`flex items-center gap-1 text-sm ${selectedFaculty.facultyProfile.isOnline ? 'text-success' : 'text-muted-foreground'}`}>
+                        <span className={`w-2 h-2 rounded-full ${selectedFaculty.facultyProfile.isOnline ? 'bg-success' : 'bg-muted'}`} />
+                        {selectedFaculty.facultyProfile.isOnline ? 'Online' : 'Offline'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bio */}
+                {selectedFaculty.facultyProfile.bio && (
+                  <div>
+                    <h4 className="font-medium mb-2">About</h4>
+                    <p className="text-muted-foreground">{selectedFaculty.facultyProfile.bio}</p>
+                  </div>
+                )}
+
+                {/* Specializations */}
+                <div>
+                  <h4 className="font-medium mb-2">Specializations</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedFaculty.facultyProfile.specializations.map(spec => (
+                      <Badge key={spec.id} variant="secondary">
+                        {spec.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <h4 className="font-medium mb-2">Location</h4>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    {selectedFaculty.officeLocation}
+                  </div>
+                </div>
+
+                {/* Reviews Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium">Reviews</h4>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-warning text-warning" />
+                      <span className="font-medium">{selectedFaculty.facultyProfile.rating}</span>
+                      <span className="text-muted-foreground text-sm">
+                        ({selectedFaculty.facultyProfile.reviewCount} reviews)
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {reviewsLoading ? (
+                    <div className="flex justify-center py-4">
+                      <div className="w-6 h-6 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                    </div>
+                  ) : facultyReviews.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">No reviews yet.</p>
+                  ) : (
+                    <div className="space-y-4 max-h-60 overflow-y-auto">
+                      {facultyReviews.map((review: any) => (
+                        <div key={review.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`h-4 w-4 ${i < review.rating ? 'fill-warning text-warning' : 'text-muted'}`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(review.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric' 
+                              })}
+                            </span>
+                          </div>
+                          {review.comment && (
+                            <p className="text-muted-foreground">{review.comment}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-border">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setProfileModalOpen(false);
+                      setTimeout(() => setSelectedFaculty(selectedFaculty), 100);
+                    }}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Book Appointment
+                  </Button>
+                  <Button
+                    onClick={() => toggleFollow(selectedFaculty.id)}
+                    disabled={followMutation.isPending}
+                    className="flex-1"
+                  >
+                    <Heart className="h-4 w-4 mr-2" />
+                    {isFollowing(selectedFaculty.id) ? 'Unfollow' : 'Follow'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

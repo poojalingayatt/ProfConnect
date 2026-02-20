@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, MapPin, FileText } from 'lucide-react';
+import { Calendar, Clock, MapPin, FileText, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,8 +11,10 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import RescheduleModal from '@/components/modals/RescheduleModal';
 import RescheduleModalNew from '@/components/booking/RescheduleModal';
 import AddNotesModal from '@/components/modals/AddNotesModal';
+import { ReviewModal } from '@/components/reviews/ReviewModal';
 import { useToast } from '@/hooks/use-toast';
 import { getAppointments, cancelAppointment, requestReschedule } from '@/api/appointments';
+import { createReview } from '@/api/reviews';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 
@@ -47,6 +49,10 @@ const StudentAppointments = () => {
     slot: string;
   } | null>(null);
   const [notesModal, setNotesModal] = useState<{
+    open: boolean;
+    appointment: Appointment | null;
+  }>({ open: false, appointment: null });
+  const [reviewModal, setReviewModal] = useState<{
     open: boolean;
     appointment: Appointment | null;
   }>({ open: false, appointment: null });
@@ -112,6 +118,41 @@ const StudentAppointments = () => {
       } else {
         toast({
           description: 'Failed to request reschedule.',
+          variant: 'destructive',
+        });
+      }
+    }
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: createReview,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['facultyList'] });
+      toast({
+        description: 'Review submitted successfully',
+      });
+      setReviewModal({ open: false, appointment: null });
+    },
+    onError: (err: any) => {
+      if (err.response?.status === 400) {
+        toast({
+          description: 'Invalid review.',
+          variant: 'destructive',
+        });
+      } else if (err.response?.status === 403) {
+        toast({
+          description: 'You are not allowed to review this appointment.',
+          variant: 'destructive',
+        });
+      } else if (err.response?.status === 409) {
+        toast({
+          description: 'You have already reviewed this appointment.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          description: 'Failed to submit review.',
           variant: 'destructive',
         });
       }
@@ -198,6 +239,16 @@ const StudentAppointments = () => {
     setNotesModal({ open: false, appointment: null });
   };
 
+  const handleReviewSubmit = async (rating: number, comment: string) => {
+    if (reviewModal.appointment) {
+      await reviewMutation.mutateAsync({
+        appointmentId: reviewModal.appointment.id,
+        rating,
+        comment
+      });
+    }
+  };
+
   const filteredAppointments = getFilteredAppointments();
 
   return (
@@ -250,6 +301,11 @@ const StudentAppointments = () => {
                   const facultyMember = getFacultyInfo(appointment);
                   const isPast = new Date(appointment.date) < now;
                   const isCompleted = appointment.status === 'COMPLETED';
+                  
+                  // Check if user has already reviewed this appointment
+                  // If backend doesn't provide hasReviewed, we can check by seeing if there are reviews for this appointment
+                  // For now, we'll rely on backend validation and handle the 409 error appropriately
+                  const hasReviewed = appointment.hasReviewed || false;
                 
                   return (
                     <Card key={appointment.id} className="overflow-hidden">
@@ -327,14 +383,26 @@ const StudentAppointments = () => {
                                   )}
                                   
                                   {(isCompleted || isPast) && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => setNotesModal({ open: true, appointment })}
-                                    >
-                                      <FileText className="h-4 w-4 mr-1" />
-                                      {isCompleted ? 'View Notes' : 'Add Notes'}
-                                    </Button>
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setNotesModal({ open: true, appointment })}
+                                      >
+                                        <FileText className="h-4 w-4 mr-1" />
+                                        {isCompleted ? 'View Notes' : 'Add Notes'}
+                                      </Button>
+                                      {isCompleted && !hasReviewed && (
+                                        <Button
+                                          size="sm"
+                                          onClick={() => setReviewModal({ open: true, appointment })}
+                                          disabled={reviewMutation.isPending}
+                                        >
+                                          <Star className="h-4 w-4 mr-1" />
+                                          {reviewMutation.isPending ? 'Submitting...' : 'Leave Review'}
+                                        </Button>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -390,6 +458,17 @@ const StudentAppointments = () => {
           onOpenChange={(open) => setNotesModal({ open, appointment: open ? notesModal.appointment : null })}
           appointmentTitle={notesModal.appointment.title}
           onSave={handleSaveNotes}
+        />
+      )}
+
+      {/* Review Modal */}
+      {reviewModal.appointment && (
+        <ReviewModal
+          open={reviewModal.open}
+          onOpenChange={(open) => setReviewModal({ open, appointment: open ? reviewModal.appointment : null })}
+          appointmentId={reviewModal.appointment.id}
+          facultyName={getFacultyInfo(reviewModal.appointment).name}
+          onSubmit={handleReviewSubmit}
         />
       )}
     </DashboardLayout>
