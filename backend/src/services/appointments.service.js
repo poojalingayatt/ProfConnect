@@ -311,6 +311,16 @@ exports.approveReschedule = async (user, appointmentId) => {
     if (appointment.status !== 'RESCHEDULE_REQUESTED')
       throw new Error('No reschedule pending');
 
+    // Revalidate slot availability before approval
+    const day = new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'long' });
+    const availability = await tx.availabilityRule.findFirst({
+      where: { facultyId: appointment.facultyId, day },
+    });
+
+    if (!availability || !availability.slots.includes(appointment.slot)) {
+      throw new Error('Selected slot is no longer available');
+    }
+
     const updated = await tx.appointment.update({
       where: { id: appointmentId },
       data: { status: 'ACCEPTED' },

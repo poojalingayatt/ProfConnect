@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationsContext';
+import { useQuery } from '@tanstack/react-query';
+import { getNotifications } from '@/api/notifications';
 import { Bell, CheckCheck, Calendar, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,38 +14,44 @@ import { cn } from '@/lib/utils';
 
 const FacultyNotifications = () => {
   const { user } = useAuth();
-  const { getNotificationsFor, markAsRead, markAllAsRead } = useNotifications();
+  const { markAsRead, markAllAsRead } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'followers'>('all');
 
-  const userNotifications = user ? getNotificationsFor(user.role, user.id) : [];
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: getNotifications,
+    enabled: !!user,
+  });
+
+  const userNotifications = notifications;
   const unreadCount = userNotifications.filter(n => !n.read).length;
 
   const getFilteredNotifications = () => {
     let filtered = userNotifications;
 
     if (activeTab === 'requests') {
-      filtered = filtered.filter(n => n.type === 'appointment_request');
+      filtered = filtered.filter(n => n.type === 'APPOINTMENT_REQUEST');
     } else if (activeTab === 'followers') {
-      filtered = filtered.filter(n => n.type === 'new_follower');
+      filtered = filtered.filter(n => n.type === 'NEW_FOLLOWER');
     }
 
     return filtered.sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   };
 
   const handleMarkAllAsRead = () => {
     if (!user) return;
-    markAllAsRead(user.role, user.id);
+    markAllAsRead();
     toast({ description: 'All notifications marked as read' });
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'appointment_request':
+      case 'APPOINTMENT_REQUEST':
         return Calendar;
-      case 'new_follower':
+      case 'NEW_FOLLOWER':
         return UserPlus;
       default:
         return Bell;
@@ -52,9 +60,9 @@ const FacultyNotifications = () => {
 
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'appointment_request':
+      case 'APPOINTMENT_REQUEST':
         return 'text-warning bg-warning/10';
-      case 'new_follower':
+      case 'NEW_FOLLOWER':
         return 'text-primary bg-primary/10';
       default:
         return 'text-muted-foreground bg-muted';
@@ -127,7 +135,11 @@ const FacultyNotifications = () => {
                         'transition-all cursor-pointer hover:shadow-md',
                         !read && 'border-primary/30 bg-primary/5'
                       )}
-                      onClick={() => markAsRead(notification.id)}
+                      onClick={() => {
+                        if (!notification.read) {
+                          markAsRead(notification.id);
+                        }
+                      }}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-4">
@@ -146,7 +158,7 @@ const FacultyNotifications = () => {
                               {notification.message}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {formatTimeAgo(notification.timestamp)}
+                              {formatTimeAgo(notification.createdAt)}
                             </p>
                           </div>
                           

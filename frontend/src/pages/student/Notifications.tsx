@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationsContext';
+import { useQuery } from '@tanstack/react-query';
+import { getNotifications, markAsRead } from '@/api/notifications';
 import { Bell, CheckCheck, Calendar, Megaphone, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,11 +13,17 @@ import { cn } from '@/lib/utils';
 
 const StudentNotifications = () => {
   const { user } = useAuth();
-  const { getNotificationsFor, markAsRead, markAllAsRead } = useNotifications();
+  const { markAllAsRead } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'appointments' | 'announcements'>('all');
 
-  const userNotifications = user ? getNotificationsFor(user.role, user.id) : [];
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: getNotifications,
+    enabled: !!user,
+  });
+
+  const userNotifications = notifications;
   const unreadCount = userNotifications.filter(n => !n.read).length;
 
   const getFilteredNotifications = () => {
@@ -30,26 +38,26 @@ const StudentNotifications = () => {
     }
     
     return filtered.sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   };
 
   const handleMarkAllAsRead = () => {
     if (!user) return;
-    markAllAsRead(user.role, user.id);
+    markAllAsRead();
     toast({ description: 'All notifications marked as read' });
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'appointment_accepted':
-      case 'appointment_rejected':
-      case 'appointment_cancelled':
-      case 'appointment_reminder':
+      case 'APPOINTMENT_ACCEPTED':
+      case 'APPOINTMENT_REJECTED':
+      case 'APPOINTMENT_CANCELLED':
+      case 'APPOINTMENT_REMINDER':
         return Calendar;
-      case 'new_announcement':
+      case 'NEW_ANNOUNCEMENT':
         return Megaphone;
-      case 'new_follower':
+      case 'NEW_FOLLOWER':
         return UserPlus;
       default:
         return Bell;
@@ -58,16 +66,16 @@ const StudentNotifications = () => {
 
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'appointment_accepted':
+      case 'APPOINTMENT_ACCEPTED':
         return 'text-success bg-success/10';
-      case 'appointment_rejected':
-      case 'appointment_cancelled':
+      case 'APPOINTMENT_REJECTED':
+      case 'APPOINTMENT_CANCELLED':
         return 'text-destructive bg-destructive/10';
-      case 'appointment_reminder':
+      case 'APPOINTMENT_REMINDER':
         return 'text-warning bg-warning/10';
-      case 'new_announcement':
+      case 'NEW_ANNOUNCEMENT':
         return 'text-primary bg-primary/10';
-      case 'new_follower':
+      case 'NEW_FOLLOWER':
         return 'text-accent-foreground bg-accent';
       default:
         return 'text-muted-foreground bg-muted';
@@ -140,7 +148,11 @@ const StudentNotifications = () => {
                         'transition-all cursor-pointer hover:shadow-md',
                         !read && 'border-primary/30 bg-primary/5'
                       )}
-                      onClick={() => markAsRead(notification.id)}
+                      onClick={() => {
+                        if (!read) {
+                          markAsRead(notification.id);
+                        }
+                      }}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-4">
@@ -159,7 +171,7 @@ const StudentNotifications = () => {
                               {notification.message}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {formatTimeAgo(notification.timestamp)}
+                              {formatTimeAgo(notification.createdAt)}
                             </p>
                           </div>
                           

@@ -1,6 +1,8 @@
 import { ReactNode, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { getNotifications } from '@/api/notifications';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -35,10 +37,16 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { user, logout } = useAuth();
-  const { getNotificationsFor, unreadCount } = useNotifications();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: getNotifications,
+    enabled: !!user,
+  });
 
   const studentNavItems = [
     { icon: Home, label: 'Dashboard', path: '/student/dashboard' },
@@ -60,9 +68,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const navItems = user?.role === 'FACULTY' ? facultyNavItems : studentNavItems;
 
-  const userNotifications = user
-    ? getNotificationsFor(user.role, user.id).filter((n) => !n.read)
-    : [];
+  const userNotifications = notifications.filter((n) => !n.read);
 
   const badgeCount = user ? unreadCount : 0;
 
@@ -121,7 +127,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     <DropdownMenuItem key={notif.id} className="flex flex-col items-start gap-1 p-3">
                       <span className="text-sm">{notif.message}</span>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(notif.timestamp).toLocaleDateString()}
+                        {new Date(notif.createdAt).toLocaleDateString()}
                       </span>
                     </DropdownMenuItem>
                   ))

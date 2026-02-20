@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { AuthResponse, RegisterInput, User, UserRole } from '@/types/auth';
 import { api, isAxiosError } from '@/lib/api';
 import { token } from '@/lib/token';
+import { initSocket, disconnectSocket } from '@/lib/socket';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +40,7 @@ const normalizeUser = (raw: any): User => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Single-run boot logic - runs exactly once on mount
   useEffect(() => {
@@ -96,6 +99,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         token.set(nextToken);
         setUser(nextUser);
+                
+        // Initialize socket connection after successful login
+        initSocket(nextToken);
+                
         return nextUser;
       } catch (err) {
         if (isAxiosError(err)) {
@@ -119,6 +126,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       token.set(nextToken);
       setUser(nextUser);
+      
+      // Initialize socket connection after successful registration
+      initSocket(nextToken);
+      
       return nextUser;
     } catch (err) {
       if (isAxiosError(err)) {
@@ -135,7 +146,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     token.remove();
     setUser(null);
-  }, []);
+    
+    // Disconnect socket and clear notifications cache on logout
+    disconnectSocket();
+    queryClient.removeQueries({ queryKey: ['notifications'] });
+  }, [queryClient]);
+
+  // Effect to initialize socket when user becomes authenticated after boot
+  useEffect(() => {
+    const currentToken = token.get();
+    if (user && currentToken) {
+      // Initialize socket connection when user is authenticated
+      initSocket(currentToken);
+    }
+  }, [user]);
 
   const value = useMemo<AuthContextType>(
     () => ({
