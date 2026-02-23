@@ -23,10 +23,10 @@ const StudentNotifications = () => {
 
     if (activeTab === 'appointments') {
       filtered = filtered.filter(n => 
-        n.type.includes('appointment') || n.type === 'appointment_reminder'
+        n.type.includes('appointment') || n.type === 'APPOINTMENT_REMINDER'
       );
     } else if (activeTab === 'announcements') {
-      filtered = filtered.filter(n => n.type === 'new_announcement');
+      filtered = filtered.filter(n => n.type === 'NEW_ANNOUNCEMENT');
     }
     
     return filtered.sort((a, b) => 
