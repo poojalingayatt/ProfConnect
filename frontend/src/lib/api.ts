@@ -2,11 +2,14 @@ import axios, { AxiosError } from 'axios';
 import { token } from '@/lib/token';
 
 const baseURL = import.meta.env.VITE_API_URL as string | undefined;
+const apiBase = import.meta.env.VITE_API_BASE as string | undefined;
 
-if (!baseURL) {
-  // Fail fast. This should be present in .env as VITE_API_URL.
-  throw new Error('Missing VITE_API_URL. Create a frontend .env with VITE_API_URL=http://localhost:3000/api');
+if (!baseURL || !apiBase) {
+  // Fail fast. Both values must be provided for API and sockets.
+  throw new Error('Missing VITE_API_URL or VITE_API_BASE');
 }
+
+export const API_BASE = apiBase;
 
 export const api = axios.create({
   baseURL,

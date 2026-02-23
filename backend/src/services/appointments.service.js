@@ -61,14 +61,11 @@ exports.createAppointment = async (user, data) => {
       },
     });
 
-    // 5️⃣ Create notification for faculty
-    await tx.notification.create({
-      data: {
-        userId: facultyId,
-        type: 'APPOINTMENT_REQUEST',
-        title: 'New Appointment Request',
-        message: `You have a new appointment request.`,
-      },
+    await notificationsService.createNotificationWithTx(tx, {
+      userId: facultyId,
+      type: 'APPOINTMENT_REQUEST',
+      title: 'New Appointment Request',
+      message: 'You have a new appointment request.',
     });
 
     return appointment;
@@ -280,14 +277,11 @@ exports.requestReschedule = async (user, appointmentId, data) => {
       },
     });
 
-    // Notify faculty
-    await tx.notification.create({
-      data: {
-        userId: appointment.facultyId,
-        type: 'APPOINTMENT_REQUEST',
-        title: 'Reschedule Requested',
-        message: 'Student requested to reschedule appointment.',
-      },
+    await notificationsService.createNotificationWithTx(tx, {
+      userId: appointment.facultyId,
+      type: 'APPOINTMENT_REQUEST',
+      title: 'Reschedule Requested',
+      message: 'Student requested to reschedule appointment.',
     });
 
     return updated;
@@ -332,13 +326,11 @@ exports.approveReschedule = async (user, appointmentId) => {
       data: { status: 'ACCEPTED' },
     });
 
-    await tx.notification.create({
-      data: {
-        userId: appointment.studentId,
-        type: 'APPOINTMENT_ACCEPTED',
-        title: 'Reschedule Approved',
-        message: 'Faculty approved the new appointment time.',
-      },
+    await notificationsService.createNotificationWithTx(tx, {
+      userId: appointment.studentId,
+      type: 'APPOINTMENT_ACCEPTED',
+      title: 'Reschedule Approved',
+      message: 'Faculty approved the new appointment time.',
     });
 
     return updated;
@@ -367,13 +359,11 @@ exports.rejectReschedule = async (user, appointmentId) => {
       data: { status: 'ACCEPTED' }, // revert back
     });
 
-    await tx.notification.create({
-      data: {
-        userId: appointment.studentId,
-        type: 'APPOINTMENT_REJECTED',
-        title: 'Reschedule Rejected',
-        message: 'Faculty rejected the reschedule request.',
-      },
+    await notificationsService.createNotificationWithTx(tx, {
+      userId: appointment.studentId,
+      type: 'APPOINTMENT_REJECTED',
+      title: 'Reschedule Rejected',
+      message: 'Faculty rejected the reschedule request.',
     });
 
     return updated;

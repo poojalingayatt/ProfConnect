@@ -20,12 +20,16 @@ const FacultySettings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Fetch faculty profile data
-  const { data: facultyData, isLoading, isError } = useQuery({
+  const { isLoading, isError } = useQuery({
     queryKey: queryKeys.facultyProfile(user?.id),
     queryFn: facultyApi.getMyProfile,
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 min cache
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    select: (data: any) => ({
+      department: data.department,
+      bio: data.bio,
+    }),
   });
   
   const [name, setName] = useState(user?.name || '');

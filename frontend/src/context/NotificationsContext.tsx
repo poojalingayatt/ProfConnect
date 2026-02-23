@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { getNotifications, markAsRead, markAllAsRead } from '@/api/notifications';
+import { getNotifications, markAsRead, markAllAsRead, type Notification } from '@/api/notifications';
 import { initSocket, getSocket, disconnectSocket } from '@/lib/socket';
 import { token } from '@/lib/token';
 
 interface NotificationsContextType {
+  notifications: Notification[];
   unreadCount: number;
   markAsRead: (id: number) => void;
   markAllAsRead: () => void;
@@ -17,10 +18,13 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: notifications = [] } = useQuery({
+  const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['notifications'],
     queryFn: getNotifications,
     enabled: !!user && !!token.get(),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const unreadCount = notifications?.filter(n => !n.read).length ?? 0;
@@ -46,16 +50,15 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const socket = initSocket(currentToken);
 
-    socket.on('notification', (notification) => {
-      queryClient.setQueryData(['notifications'], (old: any[] = []) => {
-        // Prevent duplicate notifications
+    socket.on('new_notification', (notification: Notification) => {
+      queryClient.setQueryData<Notification[]>(['notifications'], (old = []) => {
         if (old.find(n => n.id === notification.id)) return old;
         return [notification, ...old];
       });
     });
 
     return () => {
-      socket.off('notification');
+      socket.off('new_notification');
     };
   }, [user, queryClient]);
 
@@ -64,7 +67,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       const socket = getSocket();
       if (socket) {
-        socket.off('notification');
+        socket.off('new_notification');
         socket.disconnect();
         disconnectSocket();
       }
@@ -74,6 +77,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <NotificationsContext.Provider
       value={{
+        notifications,
         unreadCount,
         markAsRead: markAsReadMutation.mutate,
         markAllAsRead: markAllAsReadMutation.mutate,

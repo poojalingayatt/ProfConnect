@@ -7,6 +7,12 @@ interface ProtectedRouteProps {
   allowedUserType?: UserRole;
 }
 
+const getDashboardPath = (role: UserRole) => {
+  if (role === 'FACULTY') return '/faculty/dashboard';
+  if (role === 'ADMIN') return '/admin/dashboard';
+  return '/student/dashboard';
+};
+
 const ProtectedRoute = ({ children, allowedUserType }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -27,7 +33,7 @@ const ProtectedRoute = ({ children, allowedUserType }: ProtectedRouteProps) => {
   }
 
   if (allowedUserType && user.role !== allowedUserType) {
-    return <Navigate to={user.role === 'FACULTY' ? '/faculty/dashboard' : '/student/dashboard'} replace />;
+    return <Navigate to={getDashboardPath(user.role)} replace />;
   }
 
   return <>{children}</>;

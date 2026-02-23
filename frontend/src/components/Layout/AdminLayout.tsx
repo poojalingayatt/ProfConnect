@@ -14,51 +14,35 @@ import {
 import {
   GraduationCap,
   Home,
-  Search,
+  Users,
   Calendar,
-  Heart,
   Settings,
   LogOut,
   Bell,
   Menu,
   X,
-  Clock,
-  Users,
-  Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/context/NotificationsContext';
 
-interface DashboardLayoutProps {
+interface AdminLayoutProps {
   children: ReactNode;
 }
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { user, logout } = useAuth();
   const { notifications, unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const studentNavItems = [
-    { icon: Home, label: 'Dashboard', path: '/student/dashboard' },
-    { icon: Search, label: 'Find Faculty', path: '/student/faculty' },
-    { icon: Calendar, label: 'My Appointments', path: '/student/appointments' },
-    { icon: Heart, label: 'Followed Faculty', path: '/student/followed' },
-    { icon: Bell, label: 'Notifications', path: '/student/notifications' },
-    { icon: Settings, label: 'Settings', path: '/student/settings' },
+  const navItems = [
+    { icon: Home, label: 'Dashboard', path: '/admin/dashboard' },
+    { icon: Users, label: 'Manage Users', path: '/admin/users' },
+    { icon: Users, label: 'Manage Faculty', path: '/admin/faculty' },
+    { icon: Calendar, label: 'Appointments', path: '/admin/appointments' },
+    { icon: Settings, label: 'Settings', path: '/admin/settings' },
   ];
-
-  const facultyNavItems = [
-    { icon: Home, label: 'Dashboard', path: '/faculty/dashboard' },
-    { icon: Clock, label: 'Manage Availability', path: '/faculty/availability' },
-    { icon: Calendar, label: 'Appointments', path: '/faculty/appointments' },
-    { icon: Users, label: 'Followed By', path: '/faculty/followers' },
-    { icon: Bell, label: 'Notifications', path: '/faculty/notifications' },
-    { icon: Settings, label: 'Settings', path: '/faculty/settings' },
-  ];
-
-  const navItems = user?.role === 'FACULTY' ? facultyNavItems : studentNavItems;
 
   const userNotifications = notifications.filter((n) => !n.read);
 
@@ -71,10 +55,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Navigation */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40">
         <div className="h-full px-4 flex items-center justify-between">
-          {/* Left side */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -93,9 +75,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             </div>
           </div>
 
-          {/* Right side */}
           <div className="flex items-center gap-3">
-            {/* Notifications */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -115,7 +95,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     No new notifications
                   </div>
                 ) : (
-                  userNotifications.slice(0, 5).map(notif => (
+                  userNotifications.slice(0, 5).map((notif) => (
                     <DropdownMenuItem key={notif.id} className="flex flex-col items-start gap-1 p-3">
                       <span className="text-sm">{notif.message}</span>
                       <span className="text-xs text-muted-foreground">
@@ -127,7 +107,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* User menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 px-2">
@@ -146,9 +125,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => navigate(user?.role === 'FACULTY' ? '/faculty/settings' : '/student/settings')}
-                >
+                <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
                 </DropdownMenuItem>
@@ -163,15 +140,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </div>
       </header>
 
-      {/* Sidebar */}
       <aside
         className={cn(
           'fixed top-16 left-0 bottom-0 w-64 bg-card border-r border-border transition-transform duration-300 z-30',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
         <nav className="p-4 space-y-1">
-          {navItems.map(item => {
+          {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <button
@@ -184,7 +160,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
                   isActive
                     ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 )}
               >
                 <item.icon className="h-5 w-5" />
@@ -194,7 +170,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           })}
         </nav>
 
-        {/* Logout button at bottom */}
         <div className="absolute bottom-4 left-4 right-4">
           <Button variant="outline" className="w-full justify-start gap-3" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />
@@ -203,7 +178,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </div>
       </aside>
 
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-20 lg:hidden"
@@ -211,7 +185,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         />
       )}
 
-      {/* Main content */}
       <main className="pt-16 lg:pl-64 min-h-screen">
         <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
@@ -219,4 +192,5 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   );
 };
 
-export default DashboardLayout;
+export default AdminLayout;
+

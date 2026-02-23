@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import type { UserRole } from '@/types/auth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -18,6 +19,12 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const getDashboardPath = (role: UserRole) => {
+    if (role === 'FACULTY') return '/faculty/dashboard';
+    if (role === 'ADMIN') return '/admin/dashboard';
+    return '/student/dashboard';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +38,7 @@ const Login = () => {
         description: 'Login successful.',
       });
 
-      navigate(user.role === 'FACULTY' ? '/faculty/dashboard' : '/student/dashboard');
+      navigate(getDashboardPath(user.role));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       toast({

@@ -71,28 +71,54 @@ const FindFaculty = () => {
   // Query faculty list from backend
   const { data: facultyListRaw = [], isLoading, error } = useQuery<Faculty[]>({
     queryKey: [...queryKeys.facultyList(), filters],
-    queryFn: () => {
-      const filters: any = {};
-      if (searchQuery) filters.search = searchQuery;
-      if (departmentFilter !== 'all') filters.department = departmentFilter;
-      if (availabilityFilter === 'online') filters.online = true;
-      if (availabilityFilter === 'available') filters.hasAvailability = true;
+    queryFn: async () => {
+      const filterParams: any = {};
+      if (searchQuery) filterParams.search = searchQuery;
+      if (departmentFilter !== 'all') filterParams.department = departmentFilter;
+      if (availabilityFilter === 'online') filterParams.online = true;
+      if (availabilityFilter === 'available') filterParams.hasAvailability = true;
       
-      return facultyApi.getFacultyList(filters);
+      const result = await facultyApi.getFacultyList(filterParams);
+      
+      // Ensure we always return an array
+      if (!Array.isArray(result)) {
+        console.error('API returned non-array data:', result);
+        return [];
+      }
+      
+      return result;
     },
     placeholderData: [],
+    retry: 2, // Retry failed requests
   });
   
   // Use backend data directly - minimal transformation for UI display only
-  const facultyList = facultyListRaw.map(faculty => ({
-    ...faculty,
-    // Only add computed display properties that don't exist in backend
-    avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${faculty.name}`,
-    // Access nested properties directly: faculty.facultyProfile.rating
-  }));
+  const facultyList = Array.isArray(facultyListRaw) 
+    ? facultyListRaw.map(faculty => ({
+        ...faculty,
+        // Only add computed display properties that don't exist in backend
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${faculty.name}`,
+        // Access nested properties directly: faculty.facultyProfile.rating
+      }))
+    : [];
 
   // Get departments for filter dropdown
   const departments = ['all', ...new Set(facultyList.map(f => f.department || 'Unknown'))];
+  
+  // Defensive check for facultyList
+  if (!Array.isArray(facultyList)) {
+    console.error('facultyList is not an array:', facultyList);
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-destructive">Error: Invalid data format received from server</p>
+          <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
   
   const { user } = useAuth();
   
@@ -202,15 +228,18 @@ const FindFaculty = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              id="faculty-search"
+              name="faculty-search"
               placeholder="Search by name, department, or specialization..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              autoComplete="off"
               className="pl-10"
             />
           </div>
           
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="w-full sm:w-48" id="department-filter">
               <SelectValue placeholder="Department" />
             </SelectTrigger>
             <SelectContent>
@@ -223,7 +252,7 @@ const FindFaculty = () => {
           </Select>
 
           <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="w-full sm:w-48" id="availability-filter">
               <SelectValue placeholder="Availability" />
             </SelectTrigger>
             <SelectContent>

@@ -1,11 +1,13 @@
 import { io, Socket } from 'socket.io-client';
+import { API_BASE } from '@/lib/api';
 
 let socket: Socket | null = null;
 
 export const initSocket = (token: string) => {
   if (socket) return socket;
 
-  socket = io(import.meta.env.VITE_API_BASE || 'http://localhost:3000', {
+  // `API_BASE` is validated in `api.ts` earlier during app startup.
+  socket = io(API_BASE, {
     auth: { token },
     transports: ['websocket'],
   });

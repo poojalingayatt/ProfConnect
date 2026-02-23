@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -28,6 +29,9 @@ import FacultyAppointments from "./pages/faculty/Appointments";
 import FacultyFollowers from "./pages/faculty/Followers";
 import FacultySettings from "./pages/faculty/Settings";
 import FacultyNotifications from "./pages/faculty/Notifications";
+
+// Admin Pages
+import AdminDashboard from "./pages/admin/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -58,7 +62,9 @@ const App = () => (
               path="/student/find-faculty"
               element={
                 <ProtectedRoute allowedUserType="STUDENT">
-                  <FindFaculty />
+                  <ErrorBoundary>
+                    <FindFaculty />
+                  </ErrorBoundary>
                 </ProtectedRoute>
               }
             />
@@ -136,7 +142,9 @@ const App = () => (
               path="/faculty/settings"
               element={
                 <ProtectedRoute allowedUserType="FACULTY">
-                  <FacultySettings />
+                  <ErrorBoundary>
+                    <FacultySettings />
+                  </ErrorBoundary>
                 </ProtectedRoute>
               }
             />
@@ -145,6 +153,48 @@ const App = () => (
               element={
                 <ProtectedRoute allowedUserType="FACULTY">
                   <FacultyNotifications />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Routes */}
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute allowedUserType="ADMIN">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedUserType="ADMIN">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/faculty"
+              element={
+                <ProtectedRoute allowedUserType="ADMIN">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/appointments"
+              element={
+                <ProtectedRoute allowedUserType="ADMIN">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute allowedUserType="ADMIN">
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />

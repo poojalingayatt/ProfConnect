@@ -16,7 +16,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const isUserRole = (value: unknown): value is UserRole => value === 'STUDENT' || value === 'FACULTY';
+const isUserRole = (value: unknown): value is UserRole =>
+  value === 'STUDENT' || value === 'FACULTY' || value === 'ADMIN';
 
 const normalizeUser = (raw: any): User => {
   if (!raw || typeof raw !== 'object') {
@@ -99,10 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         token.set(nextToken);
         setUser(nextUser);
-                
-        // Initialize socket connection after successful login
-        initSocket(nextToken);
-                
+
         return nextUser;
       } catch (err) {
         if (isAxiosError(err)) {
@@ -127,9 +125,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       token.set(nextToken);
       setUser(nextUser);
       
-      // Initialize socket connection after successful registration
-      initSocket(nextToken);
-      
       return nextUser;
     } catch (err) {
       if (isAxiosError(err)) {
@@ -146,20 +141,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     token.remove();
     setUser(null);
-    
-    // Disconnect socket and clear notifications cache on logout
     disconnectSocket();
     queryClient.removeQueries({ queryKey: ['notifications'] });
   }, [queryClient]);
-
-  // Effect to initialize socket when user becomes authenticated after boot
-  useEffect(() => {
-    const currentToken = token.get();
-    if (user && currentToken) {
-      // Initialize socket connection when user is authenticated
-      initSocket(currentToken);
-    }
-  }, [user]);
 
   const value = useMemo<AuthContextType>(
     () => ({

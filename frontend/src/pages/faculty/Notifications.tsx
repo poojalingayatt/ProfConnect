@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationsContext';
-import { useQuery } from '@tanstack/react-query';
-import { getNotifications } from '@/api/notifications';
 import { Bell, CheckCheck, Calendar, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,15 +12,9 @@ import { cn } from '@/lib/utils';
 
 const FacultyNotifications = () => {
   const { user } = useAuth();
-  const { markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'all' | 'requests' | 'followers'>('all');
-
-  const { data: notifications = [] } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: getNotifications,
-    enabled: !!user,
-  });
 
   const userNotifications = notifications;
   const unreadCount = userNotifications.filter(n => !n.read).length;
