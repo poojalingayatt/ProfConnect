@@ -64,7 +64,7 @@ cd frontend
 npm install
 
 # Set up environment variables
-# Create .env file with VITE_API_URL=http://localhost:3000/api
+# Create .env files (see below for required values)
 
 # Start development server
 npm run dev
@@ -76,13 +76,14 @@ npm run dev
 ```
 DATABASE_URL=postgresql://user:password@localhost:5432/profconnect
 JWT_SECRET=your-jwt-secret
-PORT=3000
+PORT=5000
 CORS_ORIGIN=http://localhost:5173
 ```
 
 **Frontend (.env):**
 ```
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:5000/api
+VITE_API_BASE=http://localhost:5000
 ```
 
 ## Architecture

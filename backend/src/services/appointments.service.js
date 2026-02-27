@@ -11,6 +11,7 @@
 
 const prisma = require('../config/database');
 const notificationsService = require('./notifications.service');
+const AppError = require('../utils/AppError');
 
 /**
  * Create appointment
@@ -27,23 +28,56 @@ exports.createAppointment = async (user, data) => {
     });
 
     if (!faculty) {
-      throw new Error('Faculty not found');
+      throw new AppError('Faculty not found', 404);
     }
 
     // 2️⃣ Prevent past booking
     if (new Date(date) < new Date()) {
-      throw new Error('Cannot book past date');
+      throw new AppError('Cannot book past date', 400);
     }
 
     // 3️⃣ Validate availability
-    const day = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const parsedDate = new Date(date);
+    const weekday = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
 
     const availability = await tx.availabilityRule.findFirst({
-      where: { facultyId, day },
+      where: {
+        facultyId,
+        OR: [
+          { day: weekday },
+          { day: weekday.toUpperCase() },
+          { day: weekday.toLowerCase() },
+        ],
+      },
     });
 
-    if (!availability || !availability.slots.includes(slot)) {
-      throw new Error('Selected slot not available');
+    if (!availability) {
+      throw new AppError(
+        `Faculty has no availability configured for ${weekday}`,
+        400
+      );
+    }
+
+    const normalize = (s) => (typeof s === 'string' ? s.trim() : s);
+    const slotMatches = (inputSlot, storedSlot) => {
+      if (!inputSlot || !storedSlot) return false;
+      const a = normalize(storedSlot);
+      const b = normalize(inputSlot);
+      if (a === b) return true;
+      if (a.startsWith(b)) return true;
+      const start = a.split('-')[0];
+      if (start === b) return true;
+      if (a.includes(b)) return true;
+      return false;
+    };
+
+    const slotOk = Array.isArray(availability.slots) && availability.slots.some(s => slotMatches(slot, s));
+
+    if (!slotOk) {
+      throw new AppError(
+        `Selected slot is not available on ${weekday}`,
+        400
+      );
     }
 
     // 4️⃣ Create appointment directly
@@ -74,7 +108,7 @@ exports.createAppointment = async (user, data) => {
 
     // Catch unique constraint violation
     if (error.code === 'P2002') {
-      throw new Error('Slot already booked');
+      throw new AppError('This slot is already booked', 409);
     }
 
     throw error;
@@ -150,12 +184,12 @@ exports.updateStatus = async (user, appointmentId, status) => {
   });
 
   if (!appointment) {
-    throw new Error('Appointment not found');
+    throw new AppError('Appointment not found', 404);
   }
 
   // Ensure faculty owns it
   if (appointment.facultyId !== user.id) {
-    throw new Error('Unauthorized');
+    throw new AppError('Unauthorized', 403);
   }
 
   const updated = await prisma.appointment.update({
@@ -186,18 +220,18 @@ exports.cancelAppointment = async (user, appointmentId) => {
   });
 
   if (!appointment) {
-    throw new Error('Appointment not found');
+    throw new AppError('Appointment not found', 404);
   }
 
   if (appointment.status === 'COMPLETED')
-    throw new Error('Cannot cancel completed appointment');
+    throw new AppError('Cannot cancel completed appointment', 400);
 
   // Only student or faculty involved can cancel
   if (
     appointment.studentId !== user.id &&
     appointment.facultyId !== user.id
   ) {
-    throw new Error('Unauthorized');
+    throw new AppError('Unauthorized', 403);
   }
 
   const updated = await prisma.appointment.update({
@@ -235,36 +269,64 @@ exports.requestReschedule = async (user, appointmentId, data) => {
     });
 
     if (!appointment) {
-      throw new Error('Appointment not found');
+      throw new AppError('Appointment not found', 404);
     }
 
     if (appointment.status !== 'ACCEPTED') {
-      throw new Error('Only accepted appointments can be rescheduled');
+      throw new AppError('Only accepted appointments can be rescheduled', 400);
     }
 
     // Must belong to student
     if (appointment.studentId !== user.id) {
-      throw new Error('Unauthorized');
-    }
-
-    // Only ACCEPTED can be rescheduled
-    if (appointment.status !== 'ACCEPTED') {
-      throw new Error('Only accepted appointments can be rescheduled');
+      throw new AppError('Unauthorized', 403);
     }
 
     if (new Date(date) < new Date()) {
-      throw new Error('Cannot reschedule to past date');
+      throw new AppError('Cannot reschedule to past date', 400);
     }
 
     // Validate availability
-    const day = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+    const parsedDate = new Date(date);
+    const weekday = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
 
     const availability = await tx.availabilityRule.findFirst({
-      where: { facultyId: appointment.facultyId, day },
+      where: {
+        facultyId: appointment.facultyId,
+        OR: [
+          { day: weekday },
+          { day: weekday.toUpperCase() },
+          { day: weekday.toLowerCase() },
+        ],
+      },
     });
 
-    if (!availability || !availability.slots.includes(slot)) {
-      throw new Error('Selected slot not available');
+    if (!availability) {
+      throw new AppError(
+        `Faculty has no availability configured for ${weekday}`,
+        400
+      );
+    }
+
+    const normalize = (s) => (typeof s === 'string' ? s.trim() : s);
+    const slotMatches = (inputSlot, storedSlot) => {
+      if (!inputSlot || !storedSlot) return false;
+      const a = normalize(storedSlot);
+      const b = normalize(inputSlot);
+      if (a === b) return true;
+      if (a.startsWith(b)) return true;
+      const start = a.split('-')[0];
+      if (start === b) return true;
+      if (a.includes(b)) return true;
+      return false;
+    };
+
+    const slotOk = Array.isArray(availability.slots) && availability.slots.some(s => slotMatches(slot, s));
+
+    if (!slotOk) {
+      throw new AppError(
+        `Selected slot is not available on ${weekday}`,
+        400
+      );
     }
 
     // Store proposed changes temporarily
@@ -288,7 +350,7 @@ exports.requestReschedule = async (user, appointmentId, data) => {
 
   }).catch((error) => {
     if (error.code === 'P2002') {
-      throw new Error('Slot already booked');
+      throw new AppError('This slot is already booked', 409);
     }
     throw error;
   });
@@ -303,22 +365,56 @@ exports.approveReschedule = async (user, appointmentId) => {
       where: { id: appointmentId },
     });
 
-    if (!appointment) throw new Error('Appointment not found');
+    if (!appointment) throw new AppError('Appointment not found', 404);
 
     if (appointment.facultyId !== user.id)
-      throw new Error('Unauthorized');
+      throw new AppError('Unauthorized', 403);
 
     if (appointment.status !== 'RESCHEDULE_REQUESTED')
-      throw new Error('No reschedule pending');
+      throw new AppError('No reschedule pending', 400);
 
     // Revalidate slot availability before approval
-    const day = new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'long' });
+    const parsedDate = new Date(appointment.date);
+    const weekday = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
+
     const availability = await tx.availabilityRule.findFirst({
-      where: { facultyId: appointment.facultyId, day },
+      where: {
+        facultyId: appointment.facultyId,
+        OR: [
+          { day: weekday },
+          { day: weekday.toUpperCase() },
+          { day: weekday.toLowerCase() },
+        ],
+      },
     });
 
-    if (!availability || !availability.slots.includes(appointment.slot)) {
-      throw new Error('Selected slot is no longer available');
+    if (!availability) {
+      throw new AppError(
+        `Faculty has no availability configured for ${weekday}`,
+        400
+      );
+    }
+
+    const normalize = (s) => (typeof s === 'string' ? s.trim() : s);
+    const slotMatches = (inputSlot, storedSlot) => {
+      if (!inputSlot || !storedSlot) return false;
+      const a = normalize(storedSlot);
+      const b = normalize(inputSlot);
+      if (a === b) return true;
+      if (a.startsWith(b)) return true;
+      const start = a.split('-')[0];
+      if (start === b) return true;
+      if (a.includes(b)) return true;
+      return false;
+    };
+
+    const slotOk = Array.isArray(availability.slots) && availability.slots.some(s => slotMatches(appointment.slot, s));
+
+    if (!slotOk) {
+      throw new AppError(
+        `Selected slot is not available on ${weekday}`,
+        400
+      );
     }
 
     const updated = await tx.appointment.update({
@@ -346,13 +442,13 @@ exports.rejectReschedule = async (user, appointmentId) => {
       where: { id: appointmentId },
     });
 
-    if (!appointment) throw new Error('Appointment not found');
+    if (!appointment) throw new AppError('Appointment not found', 404);
 
     if (appointment.facultyId !== user.id)
-      throw new Error('Unauthorized');
+      throw new AppError('Unauthorized', 403);
 
     if (appointment.status !== 'RESCHEDULE_REQUESTED')
-      throw new Error('No reschedule pending');
+      throw new AppError('No reschedule pending', 400);
 
     const updated = await tx.appointment.update({
       where: { id: appointmentId },
