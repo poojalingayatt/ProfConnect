@@ -31,7 +31,7 @@ const StudentSettings = () => {
   const { toast } = useToast();
 
   const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(user?.phone || '');
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [notifications, setNotifications] = useState({
@@ -91,7 +91,7 @@ const StudentSettings = () => {
 
   // ── Profile Update Mutation ──
   const profileMutation = useMutation({
-    mutationFn: async (data: { name: string }) => {
+    mutationFn: async (data: { name: string; phone?: string }) => {
       const res = await api.patch('/users/profile', data);
       return res.data;
     },
@@ -137,7 +137,7 @@ const StudentSettings = () => {
       toast({ variant: 'destructive', title: 'Name is required' });
       return;
     }
-    profileMutation.mutate({ name: name.trim() });
+    profileMutation.mutate({ name: name.trim(), phone: phone.trim() });
   };
 
   const handleSaveNotifications = () => {

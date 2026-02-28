@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -12,44 +12,23 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Star, MapPin, Check, Calendar, Clock, Heart } from 'lucide-react';
+import { Calendar, Clock, MapPin } from 'lucide-react';
 import { getFacultyAvailability } from '@/api/availability';
 import { createAppointment } from '@/api/appointments';
-
-interface FacultyListItem {
-  id: number;
-  name: string;
-  email: string;
-  department?: string;
-  facultyProfile: {
-    bio?: string;
-    rating: number;
-    reviewCount: number;
-    isOnline: boolean;
-    specializations: { id: number; name: string }[];
-  };
-  officeLocation: string;
-  availability: { day: string; slots: string[] }[];
-  announcements: { date: string; title: string }[];
-  qualifications: string[];
-  avatar?: string;
-  bio?: string;
-  followerCount: number;
-}
 
 interface BookingModalProps {
   open: boolean;
   onClose: () => void;
   facultyId: number;
   facultyName: string;
-  faculty?: FacultyListItem | null;
+  faculty?: any;
 }
 
 const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: BookingModalProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  // Steps: 0 = date selection, 1 = slot selection, 2 = appointment details
   const [bookingStep, setBookingStep] = useState(0);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedDay, setSelectedDay] = useState('');
@@ -58,7 +37,7 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
   const [appointmentDescription, setAppointmentDescription] = useState('');
 
   const {
-    data: availability = [],
+    data: availabilityRaw,
     isLoading: isAvailabilityLoading,
     isError: isAvailabilityError,
   } = useQuery({
@@ -67,7 +46,13 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
     enabled: open && !!facultyId,
   });
 
-  // Reset selected slot when date changes to prevent invalid selections
+  // Defensive: always ensure availability is an array
+  const availability = useMemo(() => {
+    if (Array.isArray(availabilityRaw)) return availabilityRaw;
+    return [];
+  }, [availabilityRaw]);
+
+  // Reset selected slot when date changes
   useEffect(() => {
     setSelectedSlot('');
   }, [selectedDate]);
@@ -75,12 +60,12 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
   const bookMutation = useMutation({
     mutationFn: createAppointment,
     onMutate: async () => {
-      // Cancel any outgoing availability refetches to prevent race conditions
       await queryClient.cancelQueries({ queryKey: ['availability', facultyId] });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['availability', facultyId] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
       toast({
         title: 'Success',
@@ -100,7 +85,7 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
       } else if (status === 400) {
         toast({
           title: 'Invalid Details',
-          description: 'Invalid booking details.',
+          description: error?.response?.data?.message || 'Invalid booking details.',
           variant: 'destructive',
         });
       } else if (status === 403) {
@@ -119,7 +104,6 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
     },
   });
 
-  // Handle booking confirmation with real mutation
   const handleBookAppointment = () => {
     if (!selectedDate || !selectedSlot || !appointmentTitle) return;
 
@@ -132,7 +116,6 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
     });
   };
 
-  // Close modal and reset all state
   const handleClose = () => {
     onClose();
     setBookingStep(0);
@@ -159,181 +142,90 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
     return days;
   };
 
-  if (!faculty || faculty.id !== facultyId) {
-    return (
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Faculty data not available</p>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  // Resolve office location from faculty data (defensive)
+  const officeLocation = faculty?.officeLocation
+    || faculty?.facultyProfile?.officeLocation
+    || null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <>
           {bookingStep === 0 ? (
-            // Profile View
-            <>
-              <DialogHeader>
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={faculty.avatar} />
-                    <AvatarFallback className="text-2xl">{faculty.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <DialogTitle className="text-xl">{faculty.name}</DialogTitle>
-                    <DialogDescription className="mt-1">
-                      {faculty.department}
-                    </DialogDescription>
-                    <div className="flex items-center gap-4 mt-2">
-                      <span className="flex items-center gap-1 text-sm">
-                        <Star className="h-4 w-4 fill-warning text-warning" />
-                        {faculty.facultyProfile.rating} ({faculty.facultyProfile.reviewCount} reviews)
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {faculty.followerCount} followers
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="space-y-6 mt-4">
-                {/* Bio */}
-                <div>
-                  <h4 className="font-medium text-foreground mb-2">About</h4>
-                  <p className="text-sm text-muted-foreground">{faculty.bio}</p>
-                </div>
-
-                {/* Qualifications */}
-                <div>
-                  <h4 className="font-medium text-foreground mb-2">Qualifications</h4>
-                  <ul className="space-y-1">
-                    {faculty.qualifications.map((q, i) => (
-                      <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Check className="h-4 w-4 text-success" />
-                        {q}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Specializations */}
-                <div>
-                  <h4 className="font-medium text-foreground mb-2">Specializations</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {faculty.facultyProfile.specializations.map(spec => (
-                      <Badge key={spec.id} variant="secondary">{spec.name}</Badge>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Office Location */}
-                <div>
-                  <h4 className="font-medium text-foreground mb-2">Office Location</h4>
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    {faculty.officeLocation}
-                  </p>
-                </div>
-
-                {/* Availability Preview */}
-                <div>
-                  <h4 className="font-medium text-foreground mb-2">Weekly Availability</h4>
-                  <div className="grid grid-cols-5 gap-2">
-                    {faculty.availability.slice(0, 5).map(avail => (
-                      <div key={avail.day} className="text-center p-2 rounded-lg bg-accent/50">
-                        <p className="text-xs font-medium text-foreground">{avail.day.slice(0, 3)}</p>
-                        <p className="text-xs text-muted-foreground">{avail.slots.length} slots</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t">
-                  <Button variant="secondary" className="flex-1" onClick={() => setBookingStep(1)}>
-                    Book Appointment
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : bookingStep === 1 ? (
-            // Date Selection
+            // ── Step 0: Date Selection ──
             <>
               <DialogHeader>
                 <DialogTitle>Select Date</DialogTitle>
-                <DialogDescription>Choose a date for your appointment with {faculty.name}</DialogDescription>
+                <DialogDescription>
+                  Choose a date for your appointment with {facultyName}
+                </DialogDescription>
               </DialogHeader>
 
-              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-4">
-                {getNextDays().map(d => (
-                  <button
-                    key={d.date}
-                    onClick={() => {
-                      setSelectedDate(d.date);
-                      setSelectedDay(
-                        new Date(d.date).toLocaleDateString('en-US', { weekday: 'long' })
-                      );
-                      setSelectedSlot('');
-                      setBookingStep(2);
-                    }}
-                    className={`p-3 rounded-lg border text-center transition-colors ${selectedDate === d.date
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card hover:bg-accent border-border'
-                      }`}
-                  >
-                    <p className="text-xs font-medium">{d.day}</p>
-                    <p className="text-lg font-bold">{d.dayNum}</p>
-                    <p className="text-xs">{d.month}</p>
-                  </button>
-                ))}
-              </div>
+              {isAvailabilityLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                </div>
+              ) : isAvailabilityError ? (
+                <div className="mt-4 p-4 rounded-lg bg-destructive/10 text-sm text-destructive text-center">
+                  Unable to load availability. Please try again.
+                </div>
+              ) : availability.length === 0 ? (
+                <div className="mt-4 p-4 rounded-lg bg-accent/50 text-sm text-muted-foreground text-center">
+                  This faculty has not set any availability yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-4">
+                  {getNextDays().map(d => {
+                    // Check if this day has availability
+                    const dayName = new Date(d.date).toLocaleDateString('en-US', { weekday: 'long' });
+                    const hasSlots = availability.some(
+                      (a: any) => a.day === dayName && a.slots?.length > 0
+                    );
 
-              <Button variant="outline" className="mt-4" onClick={() => setBookingStep(0)}>
-                Back to Profile
-              </Button>
+                    return (
+                      <button
+                        key={d.date}
+                        onClick={() => {
+                          if (!hasSlots) return;
+                          setSelectedDate(d.date);
+                          setSelectedDay(dayName);
+                          setSelectedSlot('');
+                          setBookingStep(1);
+                        }}
+                        disabled={!hasSlots}
+                        className={`p-3 rounded-lg border text-center transition-colors ${!hasSlots
+                            ? 'bg-muted/50 border-border text-muted-foreground/40 cursor-not-allowed'
+                            : selectedDate === d.date
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-card hover:bg-accent border-border'
+                          }`}
+                      >
+                        <p className="text-xs font-medium">{d.day}</p>
+                        <p className="text-lg font-bold">{d.dayNum}</p>
+                        <p className="text-xs">{d.month}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </>
-          ) : bookingStep === 2 ? (
-            // Time Slot Selection
+          ) : bookingStep === 1 ? (
+            // ── Step 1: Time Slot Selection ──
             <>
               <DialogHeader>
                 <DialogTitle>Select Time Slot</DialogTitle>
                 <DialogDescription>
-                  Available slots for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  Available slots for {selectedDate
+                    ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                    : ''}
                 </DialogDescription>
               </DialogHeader>
 
               {(() => {
-                const selectedDay = selectedDate
-                  ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })
-                  : '';
-
                 const dayAvailability = availability.find(
-                  (a) => a.day === selectedDay
+                  (a: any) => a.day === selectedDay
                 );
-
                 const availableSlots = dayAvailability?.slots ?? [];
-
-                if (isAvailabilityLoading) {
-                  return (
-                    <div className="mt-4 p-4 rounded-lg bg-accent/50 text-sm text-muted-foreground text-center">
-                      Loading available slots...
-                    </div>
-                  );
-                }
-
-                if (isAvailabilityError) {
-                  return (
-                    <div className="mt-4 p-4 rounded-lg bg-destructive/10 text-sm text-destructive text-center">
-                      Unable to load availability. Please try again.
-                    </div>
-                  );
-                }
 
                 if (availableSlots.length === 0) {
                   return (
@@ -345,13 +237,13 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
 
                 return (
                   <div className="flex flex-wrap gap-2 mt-4">
-                    {availableSlots.map(slot => (
+                    {availableSlots.map((slot: string) => (
                       <button
                         key={slot}
-                        onClick={() => { setSelectedSlot(slot); setBookingStep(3); }}
+                        onClick={() => { setSelectedSlot(slot); setBookingStep(2); }}
                         className={`px-4 py-2 rounded-lg border transition-colors ${selectedSlot === slot
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-card hover:bg-accent border-border'
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card hover:bg-accent border-border'
                           }`}
                       >
                         {slot}
@@ -364,18 +256,21 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
               <Button
                 variant="outline"
                 className="mt-4"
-                onClick={() => setBookingStep(1)}
+                onClick={() => setBookingStep(0)}
               >
                 Back
               </Button>
             </>
           ) : (
-            // Appointment Details
+            // ── Step 2: Appointment Details ──
             <>
               <DialogHeader>
                 <DialogTitle>Appointment Details</DialogTitle>
                 <DialogDescription>
-                  {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at {selectedSlot}
+                  {selectedDate
+                    ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                    : ''}{' '}
+                  at {selectedSlot}
                 </DialogDescription>
               </DialogHeader>
 
@@ -404,20 +299,24 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
                 <div className="p-4 rounded-lg bg-accent/50 space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    {selectedDate
+                      ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+                      : ''}
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     {selectedSlot}
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    {faculty.officeLocation}
-                  </div>
+                  {officeLocation && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      {officeLocation}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <Button variant="outline" onClick={() => setBookingStep(2)}>
+                  <Button variant="outline" onClick={() => setBookingStep(1)}>
                     Back
                   </Button>
                   <Button
