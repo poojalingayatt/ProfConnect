@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,33 +14,41 @@ import { Badge } from '@/components/ui/badge';
 import { Camera, X, Plus } from 'lucide-react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
 import { facultyApi } from '@/api/faculty';
 import { queryKeys } from '@/lib/queryKeys';
 
 const FacultySettings = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { toast } = useToast();
-  
-  const { isLoading, isError } = useQuery({
+  const queryClient = useQueryClient();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: profileData, isLoading, isError } = useQuery({
     queryKey: queryKeys.facultyProfile(user?.id),
     queryFn: facultyApi.getMyProfile,
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    select: (data: any) => ({
-      department: data.department,
-      bio: data.bio,
-    }),
   });
-  
+
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
   const [officeLocation, setOfficeLocation] = useState('');
   const [specializations, setSpecializations] = useState<string[]>([]);
   const [newSpecialization, setNewSpecialization] = useState('');
-  
+
+  // Pre-populate form fields when profile data loads
+  useEffect(() => {
+    if (profileData) {
+      setName(profileData.name || user?.name || '');
+      setBio(profileData.facultyProfile?.bio || '');
+      if (profileData.facultyProfile?.specializations) {
+        setSpecializations(profileData.facultyProfile.specializations.map((s: any) => s.name));
+      }
+    }
+  }, [profileData, user?.name]);
+
   const [notifications, setNotifications] = useState({
     emailRequests: true,
     inApp: true,
@@ -61,10 +71,73 @@ const FacultySettings = () => {
     setSpecializations(specializations.filter(s => s !== spec));
   };
 
+  // ── Avatar Upload Mutation ──
+  const avatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await api.patch('/users/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      const avatarUrl = data.user?.avatar;
+      if (avatarUrl) {
+        updateUser({ avatar: avatarUrl });
+      }
+      toast({
+        title: 'Avatar updated',
+        description: 'Your profile photo has been changed.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Upload failed',
+        description: error?.response?.data?.message || 'Failed to upload avatar. Max 5MB, JPEG/PNG/GIF only.',
+      });
+    },
+  });
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      avatarMutation.mutate(file);
+    }
+  };
+
+  // ── Profile Update Mutation ──
+  const profileMutation = useMutation({
+    mutationFn: async (data: { name: string; bio?: string; specializations?: string[] }) => {
+      const res = await api.patch('/users/profile', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.facultyProfile(user?.id) });
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been saved successfully.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error?.response?.data?.message || 'Failed to update profile.',
+      });
+    },
+  });
+
   const handleSaveProfile = () => {
-    toast({
-      title: 'Profile updated',
-      description: 'Your profile has been saved successfully.',
+    if (!name.trim()) {
+      toast({ variant: 'destructive', title: 'Name is required' });
+      return;
+    }
+    profileMutation.mutate({
+      name: name.trim(),
+      bio: bio.trim(),
+      specializations,
     });
   };
 
@@ -130,16 +203,30 @@ const FacultySettings = () => {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="h-20 w-20">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} />
+                      <AvatarImage src={user?.avatar ? `${API_BASE}${user.avatar}` : `https://api.dicebear.com/7.x/initials/svg?seed=${user?.name}`} />
                       <AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <button className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      className="hidden"
+                      onChange={handleAvatarChange}
+                    />
+                    <button
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={avatarMutation.isPending}
+                      className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
                       <Camera className="h-4 w-4" />
                     </button>
                   </div>
                   <div>
                     <p className="font-medium text-foreground">{user?.name}</p>
                     <p className="text-sm text-muted-foreground">{user?.department ?? "Department not set"}</p>
+                    {avatarMutation.isPending && (
+                      <p className="text-xs text-primary mt-1">Uploading...</p>
+                    )}
                   </div>
                 </div>
 
@@ -224,7 +311,9 @@ const FacultySettings = () => {
                   </div>
                 </div>
 
-                <Button onClick={handleSaveProfile}>Save Changes</Button>
+                <Button onClick={handleSaveProfile} disabled={profileMutation.isPending}>
+                  {profileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

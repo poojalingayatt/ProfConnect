@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Calendar, Clock, Heart, CheckCircle, ArrowRight, MapPin, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,19 +7,39 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
+import { getAppointments } from '@/api/appointments';
+import { facultyApi } from '@/api/faculty';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const studentAppointments: any[] = [];
-  const upcomingAppointments: any[] = [];
-  const pendingAppointments: any[] = [];
-  const completedCount = 0;
+  // ── Fetch real appointments ──
+  const { data: studentAppointments = [] } = useQuery({
+    queryKey: ['appointments'],
+    queryFn: getAppointments,
+    enabled: !!user,
+  });
 
-  const followedFacultyCount = 0;
+  // ── Fetch followed faculty ──
+  const { data: followedFaculty = [] } = useQuery({
+    queryKey: ['followedFacultyIds'],
+    queryFn: facultyApi.getMyFollowedIds,
+    enabled: !!user,
+  });
 
-  const recommendedFaculty: any[] = [];
+  const now = new Date();
+  const upcomingAppointments = studentAppointments.filter(
+    (a: any) => new Date(a.date) >= now && (a.status === 'ACCEPTED' || a.status === 'PENDING')
+  );
+  const pendingAppointments = studentAppointments.filter(
+    (a: any) => a.status === 'PENDING'
+  );
+  const completedCount = studentAppointments.filter(
+    (a: any) => a.status === 'COMPLETED'
+  ).length;
+
+  const followedFacultyCount = followedFaculty.length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -33,8 +54,17 @@ const StudentDashboard = () => {
     }
   };
 
-  const getFacultyName = (facultyId: number) => {
-    return 'Unknown';
+  const getFacultyInfo = (appointment: any) => {
+    if (appointment.faculty?.name) {
+      return {
+        name: appointment.faculty.name,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${appointment.faculty.name}`
+      };
+    }
+    return {
+      name: `Faculty ${appointment.facultyId}`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Faculty${appointment.facultyId}`
+    };
   };
 
   return (
@@ -129,20 +159,20 @@ const StudentDashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {upcomingAppointments.slice(0, 3).map(appointment => {
-                      const facultyMember = undefined; // Will be fetched from backend
+                    {upcomingAppointments.slice(0, 3).map((appointment: any) => {
+                      const facultyMember = getFacultyInfo(appointment);
                       return (
                         <div
                           key={appointment.id}
                           className="flex items-center gap-4 p-4 rounded-xl bg-accent/30 hover:bg-accent/50 transition-colors"
                         >
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={facultyMember?.avatar} />
-                            <AvatarFallback>{facultyMember?.name?.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={facultyMember.avatar} />
+                            <AvatarFallback>{facultyMember.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-foreground truncate">{appointment.title}</p>
-                            <p className="text-sm text-muted-foreground">{facultyMember?.name}</p>
+                            <p className="text-sm text-muted-foreground">{facultyMember.name}</p>
                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
@@ -153,11 +183,7 @@ const StudentDashboard = () => {
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {appointment.time}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {appointment.location}
+                                {appointment.slot || appointment.time}
                               </span>
                             </div>
                           </div>
@@ -197,35 +223,6 @@ const StudentDashboard = () => {
                     </Badge>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Recommended Faculty */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Recommended Faculty</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recommendedFaculty.map(f => (
-                  <div
-                    key={f.id}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                    onClick={() => navigate('/student/faculty')}
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={f.avatar} />
-                      <AvatarFallback>{f.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-foreground truncate">{f.name}</p>
-                      <p className="text-xs text-muted-foreground">{f.department}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Star className="h-3 w-3 fill-warning text-warning" />
-                      {f.rating}
-                    </div>
-                  </div>
-                ))}
               </CardContent>
             </Card>
           </div>

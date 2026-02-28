@@ -12,24 +12,17 @@
 const usersService = require('../services/users.service');
 
 
-/**
- * Get logged-in user profile
- */
 exports.getProfile = async (req, res, next) => {
   try {
-    // req.user is attached by auth middleware
     const user = await usersService.getProfile(req.user.id);
 
     res.json({ user });
   } catch (error) {
-    next(error); // Pass to global error handler
+    next(error);
   }
 };
 
 
-/**
- * Update user profile
- */
 exports.updateProfile = async (req, res, next) => {
   try {
     const updatedUser = await usersService.updateProfile(
@@ -47,9 +40,6 @@ exports.updateProfile = async (req, res, next) => {
 };
 
 
-/**
- * Update password
- */
 exports.updatePassword = async (req, res, next) => {
   try {
     await usersService.updatePassword(
@@ -59,6 +49,24 @@ exports.updatePassword = async (req, res, next) => {
 
     res.json({
       message: 'Password updated successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateAvatar = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const avatarPath = `/uploads/${req.file.filename}`;
+    const user = await usersService.updateAvatar(req.user.id, avatarPath);
+
+    res.json({
+      message: 'Avatar updated successfully',
+      user
     });
   } catch (error) {
     next(error);

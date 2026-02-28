@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Clock, Users, CheckCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,37 +8,94 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
+import { getAppointments, acceptAppointment, rejectAppointment } from '@/api/appointments';
+import { facultyApi } from '@/api/faculty';
 
 const FacultyDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const pendingAppointments: any[] = [];
-  const upcomingAppointments: any[] = [];
-  const completedCount = 0;
-  const followerCount = 0;
+  // ── Fetch real appointments ──
+  const { data: allAppointments = [] } = useQuery({
+    queryKey: ['appointments'],
+    queryFn: getAppointments,
+    enabled: !!user,
+  });
 
-  const getStudentInfo = (studentId: number) => {
-    return undefined;
-  };
+  // ── Fetch real follower count ──
+  const { data: followers = [] } = useQuery({
+    queryKey: ['myFollowers'],
+    queryFn: facultyApi.getMyFollowers,
+    enabled: !!user,
+  });
+
+  const now = new Date();
+  const pendingAppointments = allAppointments.filter((a: any) => a.status === 'PENDING');
+  const upcomingAppointments = allAppointments.filter(
+    (a: any) => a.status === 'ACCEPTED' && new Date(a.date) >= now
+  );
+  const completedCount = allAppointments.filter(
+    (a: any) => a.status === 'COMPLETED'
+  ).length;
+  const followerCount = Array.isArray(followers) ? followers.length : 0;
+
+  const todayStr = now.toISOString().split('T')[0];
+  const todayAppointments = allAppointments.filter(
+    (a: any) => a.date?.startsWith(todayStr) && (a.status === 'ACCEPTED' || a.status === 'PENDING')
+  );
+
+  // ── Accept Mutation ──
+  const acceptMutation = useMutation({
+    mutationFn: acceptAppointment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({ description: 'Appointment accepted. Student notified.' });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        description: error?.response?.data?.message || 'Failed to accept appointment',
+      });
+    },
+  });
+
+  // ── Reject Mutation ──
+  const rejectMutation = useMutation({
+    mutationFn: rejectAppointment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast({ description: 'Appointment rejected. Student notified.' });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        description: error?.response?.data?.message || 'Failed to reject appointment',
+      });
+    },
+  });
 
   const handleAccept = (appointmentId: number) => {
-    toast({
-      title: 'Appointment Accepted',
-      description: 'The student has been notified.',
-    });
+    acceptMutation.mutate(appointmentId);
   };
 
   const handleReject = (appointmentId: number) => {
-    toast({
-      variant: 'destructive',
-      title: 'Appointment Rejected',
-      description: 'The student has been notified.',
-    });
+    rejectMutation.mutate(appointmentId);
   };
 
-  const todayAppointments: any[] = [];
+  const getStudentInfo = (appointment: any) => {
+    if (appointment.student?.name) {
+      return {
+        name: appointment.student.name,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${appointment.student.name}`
+      };
+    }
+    return {
+      name: `Student ${appointment.studentId}`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Student${appointment.studentId}`
+    };
+  };
 
   return (
     <DashboardLayout>
@@ -134,19 +192,19 @@ const FacultyDashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {pendingAppointments.slice(0, 4).map(appointment => {
-                      const student = getStudentInfo(appointment.studentId);
+                    {pendingAppointments.slice(0, 4).map((appointment: any) => {
+                      const student = getStudentInfo(appointment);
                       return (
                         <div
                           key={appointment.id}
                           className="flex items-start gap-4 p-4 rounded-xl bg-warning/5 border border-warning/20"
                         >
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={student?.avatar} />
-                            <AvatarFallback>{student?.name?.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={student.avatar} />
+                            <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground">{student?.name}</p>
+                            <p className="font-medium text-foreground">{student.name}</p>
                             <p className="text-sm text-muted-foreground truncate">{appointment.title}</p>
                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
@@ -158,16 +216,26 @@ const FacultyDashboard = () => {
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {appointment.time}
+                                {appointment.slot || appointment.time}
                               </span>
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="success" onClick={() => handleAccept(appointment.id)}>
-                              Accept
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => handleAccept(appointment.id)}
+                              disabled={acceptMutation.isPending}
+                            >
+                              {acceptMutation.isPending ? 'Accepting...' : 'Accept'}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleReject(appointment.id)}>
-                              Reject
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleReject(appointment.id)}
+                              disabled={rejectMutation.isPending}
+                            >
+                              {rejectMutation.isPending ? 'Rejecting...' : 'Reject'}
                             </Button>
                           </div>
                         </div>
@@ -193,14 +261,14 @@ const FacultyDashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {todayAppointments.map(appointment => {
-                      const student = getStudentInfo(appointment.studentId);
+                    {todayAppointments.map((appointment: any) => {
+                      const student = getStudentInfo(appointment);
                       return (
                         <div key={appointment.id} className="flex items-center gap-3 p-3 rounded-lg bg-accent/50">
                           <div className="w-1 h-12 bg-primary rounded-full" />
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{appointment.time}</p>
-                            <p className="text-xs text-muted-foreground">{student?.name}</p>
+                            <p className="text-sm font-medium">{appointment.slot || appointment.time}</p>
+                            <p className="text-xs text-muted-foreground">{student.name}</p>
                             <p className="text-xs text-muted-foreground truncate">{appointment.title}</p>
                           </div>
                         </div>

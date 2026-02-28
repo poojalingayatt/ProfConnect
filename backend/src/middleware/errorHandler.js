@@ -16,14 +16,17 @@ exports.errorHandler = (err, req, res, next) => {
   // Handle AppError with proper status code
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
+      status: 'error',
       message: err.message,
       ...(isProduction ? {} : { stack: err.stack }),
     });
   }
 
   // Handle other errors
-  res.status(err.statusCode || 500).json({
-    message: err.message || 'Internal Server Error',
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    status: 'error',
+    message: statusCode === 500 && isProduction ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
     ...(isProduction ? {} : { stack: err.stack }),
   });
 };

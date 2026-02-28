@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const AppError = require('../utils/AppError');
 
 exports.getStats = async () => {
   const [totalUsers, totalFaculty, totalStudents, totalAppointments] = await Promise.all([
@@ -34,9 +35,7 @@ exports.getUsers = async () => {
 
 exports.deleteUser = async (currentAdminId, userId) => {
   if (currentAdminId === userId) {
-    const err = new Error('Admins cannot delete their own account');
-    err.statusCode = 400;
-    throw err;
+    throw new AppError('Admins cannot delete their own account', 400);
   }
 
   const user = await prisma.user.findUnique({
@@ -44,9 +43,7 @@ exports.deleteUser = async (currentAdminId, userId) => {
   });
 
   if (!user) {
-    const err = new Error('User not found');
-    err.statusCode = 404;
-    throw err;
+    throw new AppError('User not found', 404);
   }
 
   await prisma.user.delete({

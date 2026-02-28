@@ -56,15 +56,7 @@ const Login = () => {
       {/* Left Panel - Form */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24 py-12">
         <div className="mx-auto w-full max-w-sm lg:max-w-md">
-          {/* Back button */}
-          <button
-            onClick={() => navigate('/')}
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to home
-          </button>
-
+         
           {/* Logo */}
           <div className="flex items-center gap-2 mb-8">
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">

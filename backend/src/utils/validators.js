@@ -5,7 +5,7 @@ const Joi = require('joi');
  */
 exports.registerSchema = Joi.object({
   email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
+  password: Joi.string().min(8).required(),
   name: Joi.string().min(2).required(),
   role: Joi.string().valid('STUDENT', 'FACULTY').required(),
   department: Joi.string().optional(),
@@ -25,6 +25,9 @@ exports.loginSchema = Joi.object({
 exports.updateProfileSchema = Joi.object({
   name: Joi.string().min(2).optional(),
   department: Joi.string().optional(),
+  phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow(''),
+  bio: Joi.string().max(500).optional().allow(''),
+  specializations: Joi.array().items(Joi.string()).optional(),
 });
 
 /**
@@ -32,7 +35,7 @@ exports.updateProfileSchema = Joi.object({
  */
 exports.updatePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
-  newPassword: Joi.string().min(6).required(),
+  newPassword: Joi.string().min(8).required(),
 });
 
 /**

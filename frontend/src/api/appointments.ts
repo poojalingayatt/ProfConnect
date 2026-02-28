@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 export interface CreateAppointmentPayload {
   facultyId: number;
   date: string;
-  time: string;
+  slot: string;
   title: string;
   description?: string;
 }

@@ -20,6 +20,10 @@ model User {
   name      String
   role      UserRole
   department String?
+  phone     String?
+  avatar    String?
+  resetToken String?
+  resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -52,7 +56,18 @@ model FacultyProfile {
   rating      Float  @default(0)
   reviewCount Int    @default(0)
 
+  specializations Specialization[]
+
   @@index([userId])
+}
+
+model Specialization {
+  id              Int            @id @default(autoincrement())
+  name            String
+  facultyProfileId Int
+  facultyProfile  FacultyProfile @relation(fields: [facultyProfileId], references: [userId], onDelete: Cascade)
+
+  @@index([facultyProfileId])
 }
 
 model Follow {

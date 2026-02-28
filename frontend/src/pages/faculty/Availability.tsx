@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -9,6 +10,7 @@ import { MapPin, Clock, Check } from 'lucide-react';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getFacultyAvailability, updateAvailability, updateOnlineStatus } from '@/api/availability';
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const timeSlots = [
@@ -18,12 +20,13 @@ const timeSlots = [
 ];
 
 const FacultyAvailability = () => {
-  useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [isInOffice, setIsInOffice] = useState(false);
   const [currentLocation, setCurrentLocation] = useState('');
-  
+
   // Initialize availability grid
   const [availability, setAvailability] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
@@ -32,6 +35,29 @@ const FacultyAvailability = () => {
     });
     return initial;
   });
+
+  // ── Fetch existing availability ──
+  const { data: existingAvailability, isLoading: isLoadingAvailability } = useQuery({
+    queryKey: ['availability', user?.id],
+    queryFn: () => user?.id ? getFacultyAvailability(user.id) : [],
+    enabled: !!user?.id,
+  });
+
+  // Pre-populate availability grid from fetched data
+  useEffect(() => {
+    if (existingAvailability && Array.isArray(existingAvailability)) {
+      const loaded: Record<string, string[]> = {};
+      days.forEach(day => { loaded[day] = []; });
+
+      existingAvailability.forEach((rule: any) => {
+        const dayName = rule.day?.charAt(0).toUpperCase() + rule.day?.slice(1).toLowerCase();
+        if (days.includes(dayName) && Array.isArray(rule.slots)) {
+          loaded[dayName] = [...rule.slots];
+        }
+      });
+      setAvailability(loaded);
+    }
+  }, [existingAvailability]);
 
   const toggleSlot = (day: string, slot: string) => {
     setAvailability(prev => {
@@ -44,11 +70,55 @@ const FacultyAvailability = () => {
     });
   };
 
+  // ── Save Availability Mutation ──
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const payload = days.map(day => ({
+        day,
+        slots: availability[day] || [],
+      }));
+      return updateAvailability(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['availability'] });
+      toast({
+        title: 'Availability Updated',
+        description: 'Your availability has been saved successfully.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error?.response?.data?.message || 'Failed to save availability.',
+      });
+    },
+  });
+
+  // ── Online Status Mutation ──
+  const statusMutation = useMutation({
+    mutationFn: (isOnline: boolean) => updateOnlineStatus(isOnline),
+    onSuccess: (_, isOnline) => {
+      setIsInOffice(isOnline);
+      toast({
+        description: isOnline ? 'Status set to available' : 'Status set to unavailable',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Status update failed',
+        description: error?.response?.data?.message || 'Failed to update status.',
+      });
+    },
+  });
+
   const handleSave = () => {
-    toast({
-      title: 'Availability Updated',
-      description: 'Your availability has been saved successfully.',
-    });
+    saveMutation.mutate();
+  };
+
+  const handleStatusToggle = (checked: boolean) => {
+    statusMutation.mutate(checked);
   };
 
   const handleSetStandardHours = () => {
@@ -59,7 +129,7 @@ const FacultyAvailability = () => {
       newAvail[day] = [...standardSlots];
     });
     setAvailability(newAvail);
-    toast({ description: 'Standard hours applied' });
+    toast({ description: 'Standard hours applied. Click Save to persist.' });
   };
 
   const handleClearAll = () => {
@@ -68,7 +138,7 @@ const FacultyAvailability = () => {
       newAvail[day] = [];
     });
     setAvailability(newAvail);
-    toast({ description: 'All availability cleared' });
+    toast({ description: 'All availability cleared. Click Save to persist.' });
   };
 
   return (
@@ -104,7 +174,8 @@ const FacultyAvailability = () => {
               </div>
               <Switch
                 checked={isInOffice}
-                onCheckedChange={setIsInOffice}
+                onCheckedChange={handleStatusToggle}
+                disabled={statusMutation.isPending}
               />
             </div>
 
@@ -142,49 +213,55 @@ const FacultyAvailability = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <div className="min-w-[600px]">
-                {/* Header row */}
-                <div className="grid grid-cols-6 gap-2 mb-2">
-                  <div className="text-sm font-medium text-muted-foreground p-2">Time</div>
-                  {days.map(day => (
-                    <div key={day} className="text-sm font-medium text-foreground text-center p-2">
-                      {day.slice(0, 3)}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Time slot rows */}
-                <div className="space-y-1">
-                  {timeSlots.map(slot => (
-                    <div key={slot} className="grid grid-cols-6 gap-2">
-                      <div className="text-xs text-muted-foreground p-2 flex items-center">
-                        {slot}
+            {isLoadingAvailability ? (
+              <div className="flex justify-center py-8">
+                <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[600px]">
+                  {/* Header row */}
+                  <div className="grid grid-cols-6 gap-2 mb-2">
+                    <div className="text-sm font-medium text-muted-foreground p-2">Time</div>
+                    {days.map(day => (
+                      <div key={day} className="text-sm font-medium text-foreground text-center p-2">
+                        {day.slice(0, 3)}
                       </div>
-                      {days.map(day => {
-                        const isAvailable = availability[day]?.includes(slot);
-                        return (
-                          <button
-                            key={`${day}-${slot}`}
-                            onClick={() => toggleSlot(day, slot)}
-                            className={cn(
-                              'h-8 rounded-md border transition-all duration-200',
-                              isAvailable
-                                ? 'bg-success/20 border-success/50 hover:bg-success/30'
-                                : 'bg-card border-border hover:bg-accent/50'
-                            )}
-                          >
-                            {isAvailable && (
-                              <Check className="h-4 w-4 mx-auto text-success" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* Time slot rows */}
+                  <div className="space-y-1">
+                    {timeSlots.map(slot => (
+                      <div key={slot} className="grid grid-cols-6 gap-2">
+                        <div className="text-xs text-muted-foreground p-2 flex items-center">
+                          {slot}
+                        </div>
+                        {days.map(day => {
+                          const isAvailable = availability[day]?.includes(slot);
+                          return (
+                            <button
+                              key={`${day}-${slot}`}
+                              onClick={() => toggleSlot(day, slot)}
+                              className={cn(
+                                'h-8 rounded-md border transition-all duration-200',
+                                isAvailable
+                                  ? 'bg-success/20 border-success/50 hover:bg-success/30'
+                                  : 'bg-card border-border hover:bg-accent/50'
+                              )}
+                            >
+                              {isAvailable && (
+                                <Check className="h-4 w-4 mx-auto text-success" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Legend */}
             <div className="flex items-center gap-6 mt-6 pt-4 border-t border-border">
@@ -198,9 +275,9 @@ const FacultyAvailability = () => {
               </div>
             </div>
 
-            <Button className="mt-6" onClick={handleSave}>
+            <Button className="mt-6" onClick={handleSave} disabled={saveMutation.isPending}>
               <Check className="h-4 w-4 mr-2" />
-              Save Availability
+              {saveMutation.isPending ? 'Saving...' : 'Save Availability'}
             </Button>
           </CardContent>
         </Card>
@@ -211,22 +288,24 @@ const FacultyAvailability = () => {
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button variant="outline" onClick={() => {
-              setIsInOffice(true);
-              toast({ description: 'Status set to available' });
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => statusMutation.mutate(true)}
+              disabled={statusMutation.isPending}
+            >
               <Clock className="h-4 w-4 mr-2" />
               Available Now
             </Button>
             <Button variant="outline" onClick={() => {
-              setIsInOffice(false);
+              statusMutation.mutate(false);
               const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
               const dayKey = days.find(d => d === today);
               if (dayKey) {
                 setAvailability(prev => ({ ...prev, [dayKey]: [] }));
               }
-              toast({ description: 'Marked as off for today' });
-            }}>
+            }}
+              disabled={statusMutation.isPending}
+            >
               Off Today
             </Button>
           </CardContent>

@@ -9,6 +9,7 @@
  */
 
 const prisma = require('../config/database');
+const AppError = require('../utils/AppError');
 
 const notificationCache = new Map();
 const CACHE_DURATION = 30000;
@@ -22,28 +23,28 @@ const emitNotification = (notification) => {
 
 exports.getMyNotifications = async (userId, options = {}) => {
   const { limit = 20, offset = 0 } = options;
-  
+
   const cacheKey = `${userId}:${limit}:${offset}`;
   const now = Date.now();
-  
+
   const cached = notificationCache.get(cacheKey);
   if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    console.log(`Using cached notifications for user ${userId}`);
+
     return cached.data;
   }
-  
+
   const data = await prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
     take: limit,
     skip: offset
   });
-  
+
   notificationCache.set(cacheKey, {
     data,
     timestamp: now
   });
-  
+
   return data;
 };
 
@@ -58,16 +59,16 @@ exports.markAsRead = async (userId, notificationId) => {
   });
 
   if (!notification) {
-    throw new Error('Notification not found');
+    throw new AppError('Notification not found', 404);
   }
 
   const result = await prisma.notification.update({
     where: { id: notificationId },
     data: { read: true },
   });
-  
+
   invalidateUserCache(userId);
-  
+
   return result;
 };
 
@@ -81,7 +82,7 @@ exports.markAllAsRead = async (userId) => {
     },
     data: { read: true },
   });
-  
+
   invalidateUserCache(userId);
 };
 

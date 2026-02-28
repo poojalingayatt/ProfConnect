@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   register: (data: RegisterInput) => Promise<User>;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +36,7 @@ const normalizeUser = (raw: any): User => {
     email: String(raw.email ?? ''),
     role,
     department: raw.department ? String(raw.department) : undefined,
+    avatar: raw.avatar ? String(raw.avatar) : undefined,
   };
 };
 
@@ -46,10 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Single-run boot logic - runs exactly once on mount
   useEffect(() => {
     let mounted = true;
-    
+
     const initializeAuth = async () => {
       const currentToken = token.get();
-      
+
       // No token = not authenticated, skip API call
       if (!currentToken) {
         if (mounted) {
@@ -57,15 +59,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return;
       }
-      
+
       try {
         // Single API call to validate token and get user
         const res = await api.get('/auth/me');
-        
+
         // Normalize user data
         const rawUser = (res.data && (res.data.user ?? res.data.data?.user)) ?? res.data;
         const authenticatedUser = normalizeUser(rawUser);
-        
+
         if (mounted) {
           setUser(authenticatedUser);
         }
@@ -83,9 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     };
-    
+
     initializeAuth();
-    
+
     return () => {
       mounted = false;
     };
@@ -124,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       token.set(nextToken);
       setUser(nextUser);
-      
+
       return nextUser;
     } catch (err) {
       if (isAxiosError(err)) {
@@ -145,6 +147,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     queryClient.removeQueries({ queryKey: ['notifications'] });
   }, [queryClient]);
 
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser(prev => prev ? { ...prev, ...updates } : prev);
+  }, []);
+
   const value = useMemo<AuthContextType>(
     () => ({
       user,
@@ -153,8 +159,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       register,
       logout,
+      updateUser,
     }),
-    [user, isLoading, login, register, logout]
+    [user, isLoading, login, register, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

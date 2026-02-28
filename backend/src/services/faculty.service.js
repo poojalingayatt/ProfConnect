@@ -8,29 +8,24 @@
  */
 
 const prisma = require('../config/database');
+const AppError = require('../utils/AppError');
 
 /**
  * Search faculty dynamically
  */
 exports.searchFaculty = async ({ search, department, online }) => {
 
-  /**
-   * We dynamically build a Prisma filter object.
-   * This allows flexible searching.
-   */
   const filters = {
-    role: 'FACULTY', // Only faculty users
+    role: 'FACULTY',
   };
 
-  // If search term exists → filter by name
   if (search) {
     filters.name = {
       contains: search,
-      mode: 'insensitive', // Case insensitive search
+      mode: 'insensitive',
     };
   }
 
-  // Filter by department
   if (department) {
     filters.department = department;
   }
@@ -38,19 +33,23 @@ exports.searchFaculty = async ({ search, department, online }) => {
   const faculty = await prisma.user.findMany({
     where: filters,
     include: {
-      facultyProfile: true,
-      followers: true, // So we can count followers
+      facultyProfile: {
+        include: {
+          specializations: true
+        }
+      },
+      followers: true,
     },
   });
 
-  // Filter by online status if requested
   const filtered = online
     ? faculty.filter(f => f.facultyProfile?.isOnline === (online === 'true'))
     : faculty;
 
-  // Remove passwords
   return filtered.map(f => {
     delete f.password;
+    delete f.resetToken;
+    delete f.resetTokenExpiry;
 
     return {
       ...f,
@@ -71,16 +70,22 @@ exports.getFacultyById = async (facultyId) => {
       role: 'FACULTY',
     },
     include: {
-      facultyProfile: true,
+      facultyProfile: {
+        include: {
+          specializations: true
+        }
+      },
       followers: true,
     },
   });
 
   if (!faculty) {
-    throw new Error('Faculty not found');
+    throw new AppError('Faculty not found', 404);
   }
 
   delete faculty.password;
+  delete faculty.resetToken;
+  delete faculty.resetTokenExpiry;
 
   return {
     ...faculty,

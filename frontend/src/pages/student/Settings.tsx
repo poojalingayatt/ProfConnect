@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
+import { api, API_BASE } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,13 +26,14 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 
 const StudentSettings = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState('');
-  
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
   const [notifications, setNotifications] = useState({
     emailAppointments: true,
     inApp: true,
@@ -50,11 +53,91 @@ const StudentSettings = () => {
     confirm: '',
   });
 
+  // ── Avatar Upload Mutation ──
+  const avatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await api.patch('/users/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      const avatarUrl = data.user?.avatar;
+      if (avatarUrl) {
+        updateUser({ avatar: avatarUrl });
+      }
+      toast({
+        title: 'Avatar updated',
+        description: 'Your profile photo has been changed.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Upload failed',
+        description: error?.response?.data?.message || 'Failed to upload avatar. Max 5MB, JPEG/PNG/GIF only.',
+      });
+    },
+  });
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      avatarMutation.mutate(file);
+    }
+  };
+
+  // ── Profile Update Mutation ──
+  const profileMutation = useMutation({
+    mutationFn: async (data: { name: string }) => {
+      const res = await api.patch('/users/profile', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been saved successfully.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error?.response?.data?.message || 'Failed to update profile.',
+      });
+    },
+  });
+
+  // ── Password Change Mutation ──
+  const passwordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const res = await api.patch('/users/password', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Password changed',
+        description: 'Your password has been updated successfully.',
+      });
+      setPasswords({ current: '', new: '', confirm: '' });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Password change failed',
+        description: error?.response?.data?.message || 'Failed to change password.',
+      });
+    },
+  });
+
   const handleSaveProfile = () => {
-    toast({
-      title: 'Profile updated',
-      description: 'Your profile has been saved successfully.',
-    });
+    if (!name.trim()) {
+      toast({ variant: 'destructive', title: 'Name is required' });
+      return;
+    }
+    profileMutation.mutate({ name: name.trim() });
   };
 
   const handleSaveNotifications = () => {
@@ -88,11 +171,10 @@ const StudentSettings = () => {
       });
       return;
     }
-    toast({
-      title: 'Password changed',
-      description: 'Your password has been updated successfully.',
+    passwordMutation.mutate({
+      currentPassword: passwords.current,
+      newPassword: passwords.new,
     });
-    setPasswords({ current: '', new: '', confirm: '' });
   };
 
   const handleDownloadData = () => {
@@ -140,16 +222,30 @@ const StudentSettings = () => {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="h-20 w-20">
-                      <AvatarImage src={user?.avatar} />
+                      <AvatarImage src={user?.avatar ? `${API_BASE}${user.avatar}` : undefined} />
                       <AvatarFallback className="text-2xl">{user?.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <button className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      className="hidden"
+                      onChange={handleAvatarChange}
+                    />
+                    <button
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={avatarMutation.isPending}
+                      className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
                       <Camera className="h-4 w-4" />
                     </button>
                   </div>
                   <div>
                     <p className="font-medium text-foreground">{user?.name}</p>
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
+                    {avatarMutation.isPending && (
+                      <p className="text-xs text-primary mt-1">Uploading...</p>
+                    )}
                   </div>
                 </div>
 
@@ -186,7 +282,9 @@ const StudentSettings = () => {
                   </div>
                 </div>
 
-                <Button onClick={handleSaveProfile}>Save Changes</Button>
+                <Button onClick={handleSaveProfile} disabled={profileMutation.isPending}>
+                  {profileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -335,7 +433,9 @@ const StudentSettings = () => {
                       onChange={(e) => setPasswords(prev => ({ ...prev, confirm: e.target.value }))}
                     />
                   </div>
-                  <Button onClick={handleChangePassword}>Change Password</Button>
+                  <Button onClick={handleChangePassword} disabled={passwordMutation.isPending}>
+                    {passwordMutation.isPending ? 'Changing...' : 'Change Password'}
+                  </Button>
                 </CardContent>
               </Card>
 

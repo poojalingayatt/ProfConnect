@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   department?: string;
+  avatar?: string;
 }
 
 export interface AuthResponse {

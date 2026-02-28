@@ -12,58 +12,44 @@
 const express = require('express');
 const router = express.Router();
 
-// Import controller functions
 const usersController = require('../controllers/users.controller');
-
-// Import authentication middleware
 const { authenticate } = require('../middleware/auth');
-
-// Import validation middleware
 const { validateRequest } = require('../middleware/validate');
+const upload = require('../config/upload');
 
-// Import Joi validation schemas
 const {
   updateProfileSchema,
   updatePasswordSchema,
 } = require('../utils/validators');
 
 
-/**
- * GET /api/users/profile
- * ----------------------------------------
- * Returns the currently logged-in user's profile.
- * Requires JWT authentication.
- */
 router.get(
 '/profile',
-  authenticate, // Protect route
+  authenticate,
   usersController.getProfile
 );
 
 
-/**
- * PATCH /api/users/profile
- * ----------------------------------------
- * Allows user to update basic profile fields.
- */
 router.patch(
   '/profile',
   authenticate,
-  validateRequest(updateProfileSchema), // Validate request body
+  validateRequest(updateProfileSchema),
   usersController.updateProfile
 );
 
 
-/**
- * PATCH /api/users/password
- * ----------------------------------------
- * Allows user to securely update their password.
- */
 router.patch(
   '/password',
   authenticate,
   validateRequest(updatePasswordSchema),
   usersController.updatePassword
+);
+
+router.patch(
+  '/avatar',
+  authenticate,
+  upload.single('avatar'),
+  usersController.updateAvatar
 );
 
 module.exports = router;

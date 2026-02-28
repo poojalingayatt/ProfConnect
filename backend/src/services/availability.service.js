@@ -8,6 +8,7 @@
  */
 
 const prisma = require('../config/database');
+const AppError = require('../utils/AppError');
 
 
 /**
@@ -24,7 +25,7 @@ exports.getFacultyAvailability = async (facultyId) => {
   });
 
   if (!faculty) {
-    throw new Error('Faculty not found');
+    throw new AppError('Faculty not found', 404);
   }
 
   // Fetch availability rules

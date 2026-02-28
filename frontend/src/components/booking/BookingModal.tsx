@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -126,7 +126,7 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
     bookMutation.mutate({
       facultyId,
       date: new Date(selectedDate).toISOString(),
-      time: selectedSlot,
+      slot: selectedSlot,
       title: appointmentTitle,
       description: appointmentDescription,
     });
@@ -282,11 +282,10 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
                       setSelectedSlot('');
                       setBookingStep(2);
                     }}
-                    className={`p-3 rounded-lg border text-center transition-colors ${
-                      selectedDate === d.date
+                    className={`p-3 rounded-lg border text-center transition-colors ${selectedDate === d.date
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-card hover:bg-accent border-border'
-                    }`}
+                      }`}
                   >
                     <p className="text-xs font-medium">{d.day}</p>
                     <p className="text-lg font-bold">{d.dayNum}</p>
@@ -350,11 +349,10 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
                       <button
                         key={slot}
                         onClick={() => { setSelectedSlot(slot); setBookingStep(3); }}
-                        className={`px-4 py-2 rounded-lg border transition-colors ${
-                          selectedSlot === slot
+                        className={`px-4 py-2 rounded-lg border transition-colors ${selectedSlot === slot
                             ? 'bg-primary text-primary-foreground border-primary'
                             : 'bg-card hover:bg-accent border-border'
-                        }`}
+                          }`}
                       >
                         {slot}
                       </button>
@@ -363,9 +361,9 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
                 );
               })()}
 
-              <Button 
-                variant="outline" 
-                className="mt-4" 
+              <Button
+                variant="outline"
+                className="mt-4"
                 onClick={() => setBookingStep(1)}
               >
                 Back
@@ -422,9 +420,9 @@ const BookingModal = ({ open, onClose, facultyId, facultyName, faculty }: Bookin
                   <Button variant="outline" onClick={() => setBookingStep(2)}>
                     Back
                   </Button>
-                  <Button 
-                    className="flex-1" 
-                    onClick={handleBookAppointment} 
+                  <Button
+                    className="flex-1"
+                    onClick={handleBookAppointment}
                     disabled={
                       bookMutation.isPending ||
                       !selectedSlot ||

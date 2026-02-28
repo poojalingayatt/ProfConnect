@@ -8,5 +8,7 @@ const { registerSchema, loginSchema } = require('../utils/validators');
 router.post('/register', validateRequest(registerSchema), authController.register);
 router.post('/login', validateRequest(loginSchema), authController.login);
 router.get('/me', authenticate, authController.getMe);
+router.post('/forgot-password', authController.forgotPassword);
+router.patch('/reset-password/:token', authController.resetPassword);
 
 module.exports = router;

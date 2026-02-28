@@ -8,6 +8,7 @@
  */
 
 const prisma = require('../config/database');
+const AppError = require('../utils/AppError');
 
 
 exports.createReview = async (user, data) => {
@@ -22,15 +23,15 @@ exports.createReview = async (user, data) => {
     });
 
     if (!appointment)
-      throw new Error('Appointment not found');
+      throw new AppError('Appointment not found', 404);
 
     // 2️⃣ Must belong to student
     if (appointment.studentId !== user.id)
-      throw new Error('Unauthorized');
+      throw new AppError('Unauthorized', 403);
 
     // 3️⃣ Only COMPLETED appointments can be reviewed
     if (appointment.status !== 'COMPLETED')
-      throw new Error('Only completed appointments can be reviewed');
+      throw new AppError('Only completed appointments can be reviewed', 400);
 
     // 4️⃣ Create review
     const review = await tx.review.create({
@@ -64,7 +65,7 @@ exports.createReview = async (user, data) => {
 
     // Unique constraint violation
     if (error.code === 'P2002') {
-      throw new Error('Review already exists for this appointment');
+      throw new AppError('Review already exists for this appointment', 409);
     }
 
     throw error;

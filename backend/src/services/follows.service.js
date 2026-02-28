@@ -9,13 +9,14 @@
  */
 
 const prisma = require('../config/database');
+const AppError = require('../utils/AppError');
 
 
 exports.followFaculty = async (studentId, facultyId) => {
 
   // Prevent self-follow
   if (studentId === facultyId) {
-    throw new Error('You cannot follow yourself');
+    throw new AppError('You cannot follow yourself', 400);
   }
 
   // Check faculty exists
@@ -27,28 +28,42 @@ exports.followFaculty = async (studentId, facultyId) => {
   });
 
   if (!faculty) {
-    throw new Error('Faculty not found');
+    throw new AppError('Faculty not found', 404);
   }
 
   // Create follow (unique constraint prevents duplicate)
-  await prisma.follow.create({
-    data: {
-      studentId,
-      facultyId,
-    },
-  });
+  try {
+    await prisma.follow.create({
+      data: {
+        studentId,
+        facultyId,
+      },
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      throw new AppError('Already following this faculty', 409);
+    }
+    throw error;
+  }
 };
 
 
 exports.unfollowFaculty = async (studentId, facultyId) => {
-  await prisma.follow.delete({
-    where: {
-      studentId_facultyId: {
-        studentId,
-        facultyId,
+  try {
+    await prisma.follow.delete({
+      where: {
+        studentId_facultyId: {
+          studentId,
+          facultyId,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      throw new AppError('Follow relationship not found', 404);
+    }
+    throw error;
+  }
 };
 
 
@@ -67,6 +82,8 @@ exports.getMyFollowed = async (studentId) => {
 
   return follows.map(f => {
     delete f.faculty.password;
+    delete f.faculty.resetToken;
+    delete f.faculty.resetTokenExpiry;
     return f.faculty;
   });
 };
@@ -83,6 +100,8 @@ exports.getMyFollowers = async (facultyId) => {
 
   return followers.map(f => {
     delete f.student.password;
+    delete f.student.resetToken;
+    delete f.student.resetTokenExpiry;
     return f.student;
   });
 };
