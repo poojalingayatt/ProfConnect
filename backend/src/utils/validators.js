@@ -27,6 +27,7 @@ exports.updateProfileSchema = Joi.object({
   department: Joi.string().optional(),
   phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow(''),
   bio: Joi.string().max(500).optional().allow(''),
+  officeLocation: Joi.string().optional().allow(''),
   specializations: Joi.array().items(Joi.string()).optional(),
 });
 

@@ -46,11 +46,92 @@ exports.getProfile = async (userId) => {
  * Update profile fields
  */
 exports.updateProfile = async (userId, data) => {
-  const { specializations, bio, ...userData } = data;
+  const { specializations, bio, officeLocation, name, phone, avatar, department } = data;
 
-  const user = await prisma.user.update({
+  // Validate specializations if provided
+  if (specializations) {
+    if (!Array.isArray(specializations)) {
+      throw new AppError('Specializations must be an array', 400);
+    }
+    if (specializations.some(s => !s || typeof s !== 'string' || !s.trim())) {
+      throw new AppError('Specializations cannot contain empty values', 400);
+    }
+  }
+
+  // Validate phone if provided
+  if (phone && !/^[0-9]{10,15}$/.test(phone)) {
+    throw new AppError('Phone must be 10-15 digits', 400);
+  }
+
+  // Validate department if provided
+  if (department && department.length > 100) {
+    throw new AppError('Department name too long', 400);
+  }
+
+  // Check user role OUTSIDE the transaction (read-only, role is immutable)
+  const user = await prisma.user.findUnique({
     where: { id: userId },
-    data: userData,
+    select: { role: true }
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Run only write operations inside the transaction
+  await prisma.$transaction(async (tx) => {
+    // Update User table
+    const userUpdateData = {};
+    if (name !== undefined) userUpdateData.name = name;
+    if (phone !== undefined) userUpdateData.phone = phone;
+    if (avatar !== undefined) userUpdateData.avatar = avatar;
+    if (department !== undefined) userUpdateData.department = department;
+
+    if (Object.keys(userUpdateData).length > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: userUpdateData
+      });
+    }
+
+    // Handle faculty-specific fields
+    if (user.role === 'FACULTY') {
+      const facultyUpdateData = {};
+      if (bio !== undefined) facultyUpdateData.bio = bio;
+      if (officeLocation !== undefined) facultyUpdateData.officeLocation = officeLocation;
+
+      // Combine the two upserts — ensure profile exists AND update fields in one call
+      if (Object.keys(facultyUpdateData).length > 0 || specializations !== undefined) {
+        await tx.facultyProfile.upsert({
+          where: { userId },
+          create: { userId, ...facultyUpdateData },
+          update: facultyUpdateData
+        });
+      }
+
+      // Handle specializations
+      if (specializations !== undefined) {
+        // Delete all existing specializations
+        await tx.specialization.deleteMany({
+          where: { facultyProfileId: userId }
+        });
+
+        // Create new specializations
+        if (specializations.length > 0) {
+          await tx.specialization.createMany({
+            data: specializations.map(name => ({
+              name: name.trim(),
+              facultyProfileId: userId
+            }))
+          });
+        }
+      }
+    }
+  });
+
+  // Fetch and return updated user OUTSIDE the transaction
+  const updatedUser = await prisma.user.findUnique({
+    where: { id: userId },
     include: {
       facultyProfile: {
         include: {
@@ -60,56 +141,11 @@ exports.updateProfile = async (userId, data) => {
     }
   });
 
-  // Handle bio and specializations for faculty
-  if (user.role === 'FACULTY' && (bio !== undefined || specializations)) {
-    // Ensure faculty profile exists and update bio
-    await prisma.facultyProfile.upsert({
-      where: { userId },
-      create: { userId, bio: bio || null },
-      update: { ...(bio !== undefined ? { bio } : {}) }
-    });
+  delete updatedUser.password;
+  delete updatedUser.resetToken;
+  delete updatedUser.resetTokenExpiry;
 
-    // Handle specializations if provided
-    if (specializations) {
-      // Delete old specializations
-      await prisma.specialization.deleteMany({
-        where: { facultyProfileId: userId }
-      });
-
-      // Create new specializations
-      if (Array.isArray(specializations) && specializations.length > 0) {
-        await prisma.specialization.createMany({
-          data: specializations.map(name => ({
-            name,
-            facultyProfileId: userId
-          }))
-        });
-      }
-    }
-
-    // Refetch with specializations
-    const updatedUser = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        facultyProfile: {
-          include: {
-            specializations: true
-          }
-        }
-      }
-    });
-
-    delete updatedUser.password;
-    delete updatedUser.resetToken;
-    delete updatedUser.resetTokenExpiry;
-    return updatedUser;
-  }
-
-  delete user.password;
-  delete user.resetToken;
-  delete user.resetTokenExpiry;
-
-  return user;
+  return updatedUser;
 };
 
 

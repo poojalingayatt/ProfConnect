@@ -33,6 +33,7 @@ const FacultySettings = () => {
 
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState('');
+  const [department, setDepartment] = useState('');
   const [bio, setBio] = useState('');
   const [officeLocation, setOfficeLocation] = useState('');
   const [specializations, setSpecializations] = useState<string[]>([]);
@@ -42,7 +43,10 @@ const FacultySettings = () => {
   useEffect(() => {
     if (profileData) {
       setName(profileData.name || user?.name || '');
+      setPhone(profileData.phone || '');
+      setDepartment(profileData.department || '');
       setBio(profileData.facultyProfile?.bio || '');
+      setOfficeLocation(profileData.facultyProfile?.officeLocation || '');
       if (profileData.facultyProfile?.specializations) {
         setSpecializations(profileData.facultyProfile.specializations.map((s: any) => s.name));
       }
@@ -109,7 +113,7 @@ const FacultySettings = () => {
 
   // ── Profile Update Mutation ──
   const profileMutation = useMutation({
-    mutationFn: async (data: { name: string; bio?: string; specializations?: string[] }) => {
+    mutationFn: async (data: { name: string; phone?: string; department?: string; bio?: string; officeLocation?: string; specializations?: string[] }) => {
       const res = await api.patch('/users/profile', data);
       return res.data;
     },
@@ -136,7 +140,10 @@ const FacultySettings = () => {
     }
     profileMutation.mutate({
       name: name.trim(),
+      phone: phone.trim(),
+      department: department.trim(),
       bio: bio.trim(),
+      officeLocation: officeLocation.trim(),
       specializations,
     });
   };
@@ -238,6 +245,16 @@ const FacultySettings = () => {
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Input
+                      id="department"
+                      placeholder="Computer Science"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
                     />
                   </div>
 

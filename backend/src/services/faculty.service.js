@@ -54,6 +54,7 @@ exports.searchFaculty = async ({ search, department, online }) => {
     return {
       ...f,
       followerCount: f.followers.length,
+      officeLocation: f.facultyProfile?.officeLocation || null,
     };
   });
 };
@@ -90,5 +91,6 @@ exports.getFacultyById = async (facultyId) => {
   return {
     ...faculty,
     followerCount: faculty.followers.length,
+    officeLocation: faculty.facultyProfile?.officeLocation || null,
   };
 };
