@@ -3,8 +3,12 @@ export interface Faculty {
   name: string;
   email: string;
   department?: string;
+  avatar?: string;
+  officeLocation?: string;
+  followerCount: number;
   facultyProfile: {
     bio?: string;
+    officeLocation?: string;
     rating: number;
     reviewCount: number;
     isOnline: boolean;
