@@ -16,8 +16,15 @@ exports.errorHandler = (err, req, res, next) => {
   // Handle AppError with proper status code
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
-      status: 'error',
       message: err.message,
+      ...(isProduction ? {} : { stack: err.stack }),
+    });
+  }
+
+  // Handle Prisma errors
+  if (err.code && err.code.startsWith('P')) {
+    return res.status(500).json({
+      message: isProduction ? 'Database error occurred' : err.message,
       ...(isProduction ? {} : { stack: err.stack }),
     });
   }
@@ -25,8 +32,7 @@ exports.errorHandler = (err, req, res, next) => {
   // Handle other errors
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
-    status: 'error',
-    message: statusCode === 500 && isProduction ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
+    message: isProduction ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
     ...(isProduction ? {} : { stack: err.stack }),
   });
 };

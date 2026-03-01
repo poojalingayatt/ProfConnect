@@ -9,6 +9,7 @@
 
 const prisma = require('../config/database');
 const AppError = require('../utils/AppError');
+const notificationsService = require('./notifications.service');
 
 
 exports.createReview = async (user, data) => {
@@ -57,6 +58,14 @@ exports.createReview = async (user, data) => {
         rating: stats._avg.rating || 0,
         reviewCount: stats._count.rating,
       },
+    });
+
+    // 6️⃣ Notify faculty
+    await notificationsService.createNotificationWithTx(tx, {
+      userId: appointment.facultyId,
+      type: 'REVIEW_RECEIVED',
+      title: 'New Review Received',
+      message: `You received a ${rating}-star review.`,
     });
 
     return review;

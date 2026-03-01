@@ -24,12 +24,12 @@ export const createAppointment = async (
   return response.data;
 };
 
-export const acceptAppointment = async (id: number) => {
-  await api.patch(`/appointments/${id}/accept`);
+export const acceptAppointment = async ({ id, duration }: { id: number; duration: number }) => {
+  await api.patch(`/appointments/${id}/accept`, { duration });
 };
 
-export const rejectAppointment = async (id: number) => {
-  await api.patch(`/appointments/${id}/reject`);
+export const rejectAppointment = async ({ id, reason }: { id: number; reason: string }) => {
+  await api.patch(`/appointments/${id}/reject`, { reason });
 };
 
 export const requestReschedule = async (

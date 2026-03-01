@@ -34,10 +34,10 @@ exports.getMyAppointments = async (req, res, next) => {
 
 exports.acceptAppointment = async (req, res, next) => {
   try {
-    const updated = await appointmentsService.updateStatus(
+    const updated = await appointmentsService.acceptAppointment(
       req.user,
       parseInt(req.params.id),
-      'ACCEPTED'
+      req.body.duration
     );
 
     res.json({ appointment: updated });
@@ -49,10 +49,10 @@ exports.acceptAppointment = async (req, res, next) => {
 
 exports.rejectAppointment = async (req, res, next) => {
   try {
-    const updated = await appointmentsService.updateStatus(
+    const updated = await appointmentsService.rejectAppointment(
       req.user,
       parseInt(req.params.id),
-      'REJECTED'
+      req.body.reason
     );
 
     res.json({ appointment: updated });

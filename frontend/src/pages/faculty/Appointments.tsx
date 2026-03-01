@@ -7,17 +7,39 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 import { getAppointments, acceptAppointment, rejectAppointment, cancelAppointment, approveReschedule, rejectReschedule } from '@/api/appointments';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 
+const DURATION_OPTIONS = [30, 45, 60, 90];
+
 const FacultyAppointments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'upcoming' | 'completed'>('all');
+
+  // Accept modal state
+  const [acceptModal, setAcceptModal] = useState<{ open: boolean; appointmentId: number | null }>({ open: false, appointmentId: null });
+  const [selectedDuration, setSelectedDuration] = useState(30);
+  const [customDuration, setCustomDuration] = useState('');
+  const [useCustomDuration, setUseCustomDuration] = useState(false);
+
+  // Reject modal state
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; appointmentId: number | null }>({ open: false, appointmentId: null });
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const {
     data: facultyAppointments = [],
@@ -27,14 +49,15 @@ const FacultyAppointments = () => {
     queryKey: ['appointments'],
     queryFn: getAppointments
   });
-  
+
   const now = new Date();
-  const pendingAppointments = facultyAppointments.filter(a => a.status === 'PENDING');
+  const pendingAppointments = facultyAppointments.filter((a: any) => a.status === 'PENDING');
+  const rescheduleRequested = facultyAppointments.filter((a: any) => a.status === 'RESCHEDULE_REQUESTED');
   const upcomingAppointments = facultyAppointments.filter(
-    a => a.status === 'ACCEPTED' && new Date(a.date) >= now
+    (a: any) => a.status === 'ACCEPTED' && new Date(a.date) >= now
   );
   const completedAppointments = facultyAppointments.filter(
-    a => a.status === 'COMPLETED' || a.status === 'CANCELLED' || a.status === 'REJECTED'
+    (a: any) => a.status === 'COMPLETED' || a.status === 'CANCELLED' || a.status === 'REJECTED'
   );
 
   const statusMap: Record<string, string> = {
@@ -50,13 +73,13 @@ const FacultyAppointments = () => {
     mutationFn: acceptAppointment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast({
-        description: 'Appointment accepted',
-      });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast({ description: 'Appointment accepted' });
+      setAcceptModal({ open: false, appointmentId: null });
     },
-    onError: () => {
+    onError: (err: any) => {
       toast({
-        description: 'Failed to accept appointment',
+        description: err?.response?.data?.message || 'Failed to accept appointment',
         variant: 'destructive',
       });
     }
@@ -66,13 +89,14 @@ const FacultyAppointments = () => {
     mutationFn: rejectAppointment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast({
-        description: 'Appointment rejected',
-      });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast({ description: 'Appointment rejected' });
+      setRejectModal({ open: false, appointmentId: null });
+      setRejectionReason('');
     },
-    onError: () => {
+    onError: (err: any) => {
       toast({
-        description: 'Failed to reject appointment',
+        description: err?.response?.data?.message || 'Failed to reject appointment',
         variant: 'destructive',
       });
     }
@@ -82,15 +106,10 @@ const FacultyAppointments = () => {
     mutationFn: cancelAppointment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast({
-        description: 'Appointment cancelled',
-      });
+      toast({ description: 'Appointment cancelled' });
     },
     onError: () => {
-      toast({
-        description: 'Failed to cancel appointment',
-        variant: 'destructive',
-      });
+      toast({ description: 'Failed to cancel appointment', variant: 'destructive' });
     }
   });
 
@@ -98,15 +117,10 @@ const FacultyAppointments = () => {
     mutationFn: approveReschedule,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast({
-        description: 'Reschedule approved',
-      });
+      toast({ description: 'Reschedule approved' });
     },
     onError: () => {
-      toast({
-        description: 'Failed to approve reschedule',
-        variant: 'destructive',
-      });
+      toast({ description: 'Failed to approve reschedule', variant: 'destructive' });
     }
   });
 
@@ -114,22 +128,17 @@ const FacultyAppointments = () => {
     mutationFn: rejectReschedule,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      toast({
-        description: 'Reschedule rejected',
-      });
+      toast({ description: 'Reschedule rejected' });
     },
     onError: () => {
-      toast({
-        description: 'Failed to reject reschedule',
-        variant: 'destructive',
-      });
+      toast({ description: 'Failed to reject reschedule', variant: 'destructive' });
     }
   });
 
   const getFilteredAppointments = () => {
     switch (activeTab) {
       case 'pending':
-        return pendingAppointments;
+        return [...pendingAppointments, ...rescheduleRequested];
       case 'upcoming':
         return upcomingAppointments;
       case 'completed':
@@ -139,7 +148,6 @@ const FacultyAppointments = () => {
     }
   };
 
-  // Student info now comes from backend appointment.student.name
   const getStudentInfo = (appointment: any) => {
     if (appointment.student?.name) {
       return {
@@ -147,7 +155,6 @@ const FacultyAppointments = () => {
         avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${appointment.student.name}`
       };
     }
-    // Fallback if backend data missing
     return {
       name: `Student ${appointment.studentId}`,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Student${appointment.studentId}`
@@ -169,24 +176,39 @@ const FacultyAppointments = () => {
     );
   };
 
-  const handleAccept = (appointmentId: number) => {
-    acceptMutation.mutate(appointmentId);
+  const handleOpenAcceptModal = (appointmentId: number) => {
+    setSelectedDuration(30);
+    setCustomDuration('');
+    setUseCustomDuration(false);
+    setAcceptModal({ open: true, appointmentId });
   };
 
-  const handleReject = (appointmentId: number) => {
-    rejectAppointmentMutation.mutate(appointmentId);
+  const handleConfirmAccept = () => {
+    if (!acceptModal.appointmentId) return;
+    const duration = useCustomDuration ? parseInt(customDuration) : selectedDuration;
+    if (!duration || duration < 15 || duration > 180) {
+      toast({ description: 'Duration must be between 15 and 180 minutes', variant: 'destructive' });
+      return;
+    }
+    acceptMutation.mutate({ id: acceptModal.appointmentId, duration });
   };
 
-  const handleRejectReschedule = (appointmentId: number) => {
-    rejectRescheduleMutation.mutate(appointmentId);
+  const handleOpenRejectModal = (appointmentId: number) => {
+    setRejectionReason('');
+    setRejectModal({ open: true, appointmentId });
   };
 
-  const handleCancel = (appointmentId: number) => {
-    cancelMutation.mutate(appointmentId);
+  const handleConfirmReject = () => {
+    if (!rejectModal.appointmentId) return;
+    if (!rejectionReason.trim()) {
+      toast({ description: 'Please provide a reason for rejection', variant: 'destructive' });
+      return;
+    }
+    rejectAppointmentMutation.mutate({ id: rejectModal.appointmentId, reason: rejectionReason.trim() });
   };
 
-  const handleApproveReschedule = (appointmentId: number) => {
-    approveMutation.mutate(appointmentId);
+  const getLocation = (appointment: any) => {
+    return appointment.faculty?.facultyProfile?.officeLocation ?? 'Location not set';
   };
 
   const filteredAppointments = getFilteredAppointments();
@@ -206,9 +228,9 @@ const FacultyAppointments = () => {
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="pending" className="relative">
               Pending
-              {pendingAppointments.length > 0 && (
+              {(pendingAppointments.length + rescheduleRequested.length) > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 text-xs bg-warning text-warning-foreground rounded-full">
-                  {pendingAppointments.length}
+                  {pendingAppointments.length + rescheduleRequested.length}
                 </span>
               )}
             </TabsTrigger>
@@ -233,27 +255,27 @@ const FacultyAppointments = () => {
                   {activeTab === 'pending'
                     ? 'No pending requests to review'
                     : activeTab === 'upcoming'
-                    ? 'No upcoming appointments scheduled'
-                    : 'No appointments in this category'}
+                      ? 'No upcoming appointments scheduled'
+                      : 'No appointments in this category'}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredAppointments.map(appointment => {
+                {filteredAppointments.map((appointment: any) => {
                   const student = getStudentInfo(appointment);
                   const isPending = appointment.status === 'PENDING';
                   const isAccepted = appointment.status === 'ACCEPTED';
                   const isRescheduleRequested = appointment.status === 'RESCHEDULE_REQUESTED';
 
                   return (
-                    <Card 
-                      key={appointment.id} 
-                      className={isPending ? 'border-warning/50 bg-warning/5' : ''}
+                    <Card
+                      key={appointment.id}
+                      className={isPending || isRescheduleRequested ? 'border-warning/50 bg-warning/5' : ''}
                     >
                       <CardContent className="p-0">
                         <div className="flex flex-col sm:flex-row">
                           {/* Date sidebar */}
-                          <div className={`sm:w-24 p-4 flex sm:flex-col items-center justify-center text-center border-b sm:border-b-0 sm:border-r ${isPending ? 'bg-warning/10 border-warning/20' : 'bg-accent/50 border-border'}`}>
+                          <div className={`sm:w-24 p-4 flex sm:flex-col items-center justify-center text-center border-b sm:border-b-0 sm:border-r ${isPending || isRescheduleRequested ? 'bg-warning/10 border-warning/20' : 'bg-accent/50 border-border'}`}>
                             <p className="text-sm font-medium text-muted-foreground sm:mb-1">
                               {new Date(appointment.date).toLocaleDateString('en-US', { weekday: 'short' })}
                             </p>
@@ -279,11 +301,12 @@ const FacultyAppointments = () => {
                                   <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
-                                      {appointment.slot || appointment.time} ({appointment.duration || 60} min)
+                                      {appointment.slot || appointment.time}
+                                      {appointment.duration ? ` (${appointment.duration} min)` : ''}
                                     </span>
                                     <span className="flex items-center gap-1">
                                       <MapPin className="h-3 w-3" />
-                                      {appointment.location || 'Online'}
+                                      {getLocation(appointment)}
                                     </span>
                                   </div>
                                 </div>
@@ -291,45 +314,43 @@ const FacultyAppointments = () => {
 
                               <div className="flex flex-col sm:items-end gap-3">
                                 {getStatusBadge(appointment.status)}
-                                
+
                                 {isPending && (
                                   <div className="flex gap-2">
-                                    <Button 
-                                      size="sm" 
-                                      variant="success" 
-                                      onClick={() => handleAccept(appointment.id)}
-                                      disabled={acceptMutation.isPending}
+                                    <Button
+                                      size="sm"
+                                      variant="success"
+                                      onClick={() => handleOpenAcceptModal(appointment.id)}
                                     >
                                       <Check className="h-4 w-4 mr-1" />
-                                      {acceptMutation.isPending ? 'Accepting...' : 'Accept'}
+                                      Accept
                                     </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline" 
-                                      onClick={() => handleReject(appointment.id)}
-                                      disabled={rejectAppointmentMutation.isPending}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenRejectModal(appointment.id)}
                                     >
                                       <X className="h-4 w-4 mr-1" />
-                                      {rejectAppointmentMutation.isPending ? 'Rejecting...' : 'Reject'}
+                                      Reject
                                     </Button>
                                   </div>
                                 )}
 
                                 {isRescheduleRequested && (
                                   <div className="flex gap-2">
-                                    <Button 
-                                      size="sm" 
-                                      variant="success" 
-                                      onClick={() => handleApproveReschedule(appointment.id)}
+                                    <Button
+                                      size="sm"
+                                      variant="success"
+                                      onClick={() => approveMutation.mutate(appointment.id)}
                                       disabled={approveMutation.isPending}
                                     >
                                       <Check className="h-4 w-4 mr-1" />
                                       {approveMutation.isPending ? 'Approving...' : 'Approve'}
                                     </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline" 
-                                      onClick={() => handleRejectReschedule(appointment.id)}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => rejectRescheduleMutation.mutate(appointment.id)}
                                       disabled={rejectRescheduleMutation.isPending}
                                     >
                                       <X className="h-4 w-4 mr-1" />
@@ -339,11 +360,11 @@ const FacultyAppointments = () => {
                                 )}
 
                                 {isAccepted && new Date(appointment.date) >= now && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="text-destructive" 
-                                    onClick={() => handleCancel(appointment.id)}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-destructive"
+                                    onClick={() => cancelMutation.mutate(appointment.id)}
                                     disabled={cancelMutation.isPending}
                                   >
                                     {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
@@ -368,6 +389,107 @@ const FacultyAppointments = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ═══ Accept Modal (Duration Selector) ═══ */}
+      <Dialog open={acceptModal.open} onOpenChange={(open) => { if (!open) setAcceptModal({ open: false, appointmentId: null }); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Accept Appointment</DialogTitle>
+            <DialogDescription>Select the meeting duration for this appointment.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <Label>Duration (minutes)</Label>
+            <div className="flex flex-wrap gap-2">
+              {DURATION_OPTIONS.map(d => (
+                <button
+                  key={d}
+                  onClick={() => { setSelectedDuration(d); setUseCustomDuration(false); }}
+                  className={`px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${!useCustomDuration && selectedDuration === d
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card hover:bg-accent border-border'
+                    }`}
+                >
+                  {d} min
+                </button>
+              ))}
+              <button
+                onClick={() => setUseCustomDuration(true)}
+                className={`px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${useCustomDuration
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card hover:bg-accent border-border'
+                  }`}
+              >
+                Custom
+              </button>
+            </div>
+
+            {useCustomDuration && (
+              <div>
+                <Input
+                  type="number"
+                  min={15}
+                  max={180}
+                  placeholder="e.g., 75"
+                  value={customDuration}
+                  onChange={(e) => setCustomDuration(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">15–180 minutes</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={() => setAcceptModal({ open: false, appointmentId: null })}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleConfirmAccept}
+                disabled={acceptMutation.isPending}
+              >
+                {acceptMutation.isPending ? 'Accepting...' : 'Confirm Accept'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Reject Modal (Reason Textarea) ═══ */}
+      <Dialog open={rejectModal.open} onOpenChange={(open) => { if (!open) { setRejectModal({ open: false, appointmentId: null }); setRejectionReason(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Appointment</DialogTitle>
+            <DialogDescription>Please provide a reason for rejecting this appointment.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label htmlFor="rejection-reason">Reason</Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="e.g., I am unavailable that day."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={() => { setRejectModal({ open: false, appointmentId: null }); setRejectionReason(''); }}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                variant="destructive"
+                onClick={handleConfirmReject}
+                disabled={rejectAppointmentMutation.isPending || !rejectionReason.trim()}
+              >
+                {rejectAppointmentMutation.isPending ? 'Rejecting...' : 'Confirm Reject'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

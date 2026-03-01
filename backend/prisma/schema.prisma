@@ -118,6 +118,8 @@ model Appointment {
   description String?
 
   status      AppointmentStatus  @default(PENDING)
+  duration        Int?
+  rejectionReason String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -140,6 +142,10 @@ enum NotificationType {
   APPOINTMENT_ACCEPTED
   APPOINTMENT_REJECTED
   APPOINTMENT_CANCELLED
+  RESCHEDULE_REQUESTED
+  RESCHEDULE_APPROVED
+  RESCHEDULE_REJECTED
+  REVIEW_RECEIVED
   APPOINTMENT_REMINDER
   NEW_FOLLOWER
   NEW_ANNOUNCEMENT

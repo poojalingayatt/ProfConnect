@@ -291,8 +291,8 @@ const StudentAppointments = () => {
                   {activeTab === 'upcoming'
                     ? 'You have no upcoming appointments'
                     : activeTab === 'past'
-                    ? 'You have no past appointments'
-                    : 'You haven\'t booked any appointments yet'}
+                      ? 'You have no past appointments'
+                      : 'You haven\'t booked any appointments yet'}
                 </p>
               </div>
             ) : (
@@ -301,12 +301,12 @@ const StudentAppointments = () => {
                   const facultyMember = getFacultyInfo(appointment);
                   const isPast = new Date(appointment.date) < now;
                   const isCompleted = appointment.status === 'COMPLETED';
-                  
+
                   // Check if user has already reviewed this appointment
                   // If backend doesn't provide hasReviewed, we can check by seeing if there are reviews for this appointment
                   // For now, we'll rely on backend validation and handle the 409 error appropriately
                   const hasReviewed = appointment.hasReviewed || false;
-                
+
                   return (
                     <Card key={appointment.id} className="overflow-hidden">
                       <CardContent className="p-0">
@@ -323,7 +323,7 @@ const StudentAppointments = () => {
                               {new Date(appointment.date).toLocaleDateString('en-US', { month: 'short' })}
                             </p>
                           </div>
-                
+
                           {/* Main content */}
                           <div className="flex-1 p-4 sm:p-6">
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -338,11 +338,12 @@ const StudentAppointments = () => {
                                   <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
-                                      {appointment.slot || appointment.time} ({appointment.duration || 60} min)
+                                      {appointment.slot || appointment.time}
+                                      {appointment.duration ? ` (${appointment.duration} min)` : ''}
                                     </span>
                                     <span className="flex items-center gap-1">
                                       <MapPin className="h-3 w-3" />
-                                      {appointment.location || 'Online'}
+                                      {appointment.faculty?.facultyProfile?.officeLocation ?? 'Location not set'}
                                     </span>
                                   </div>
                                 </div>
@@ -350,19 +351,19 @@ const StudentAppointments = () => {
 
                               <div className="flex flex-col sm:items-end gap-3">
                                 {getStatusBadge(appointment.status)}
-                                
+
                                 <div className="flex flex-wrap gap-2">
                                   {!isPast && appointment.status !== 'RESCHEDULE_REQUESTED' && (appointment.status === 'ACCEPTED' || appointment.status === 'PENDING') && (
                                     <>
                                       {appointment.status === 'ACCEPTED' && (
-                                        <Button 
-                                          size="sm" 
-                                          variant="outline" 
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
                                           onClick={() => handleNewReschedule(
-                                            appointment.id, 
-                                            appointment.facultyId, 
-                                            appointment.title, 
-                                            appointment.date, 
+                                            appointment.id,
+                                            appointment.facultyId,
+                                            appointment.title,
+                                            appointment.date,
                                             appointment.slot || appointment.time
                                           )}
                                           disabled={rescheduleMutation.isPending}
@@ -370,10 +371,10 @@ const StudentAppointments = () => {
                                           {rescheduleMutation.isPending ? 'Requesting...' : 'Request Reschedule'}
                                         </Button>
                                       )}
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="text-destructive" 
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-destructive"
                                         onClick={() => handleCancel(appointment.id)}
                                         disabled={cancelMutation.isPending}
                                       >
@@ -381,7 +382,7 @@ const StudentAppointments = () => {
                                       </Button>
                                     </>
                                   )}
-                                  
+
                                   {(isCompleted || isPast) && (
                                     <>
                                       <Button
@@ -412,6 +413,13 @@ const StudentAppointments = () => {
                               <p className="text-sm text-muted-foreground mt-4 pt-4 border-t border-border">
                                 {appointment.description}
                               </p>
+                            )}
+
+                            {appointment.status === 'REJECTED' && appointment.rejectionReason && (
+                              <div className="mt-4 pt-4 border-t border-border">
+                                <p className="text-sm font-medium text-destructive">Rejection Reason:</p>
+                                <p className="text-sm text-muted-foreground mt-1">{appointment.rejectionReason}</p>
+                              </div>
                             )}
                           </div>
                         </div>

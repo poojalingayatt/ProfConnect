@@ -10,6 +10,7 @@
 
 const prisma = require('../config/database');
 const AppError = require('../utils/AppError');
+const notificationsService = require('./notifications.service');
 
 
 exports.followFaculty = async (studentId, facultyId) => {
@@ -38,6 +39,19 @@ exports.followFaculty = async (studentId, facultyId) => {
         studentId,
         facultyId,
       },
+    });
+
+    // Notify faculty
+    const student = await prisma.user.findUnique({
+      where: { id: studentId },
+      select: { name: true }
+    });
+
+    await notificationsService.createNotification({
+      userId: facultyId,
+      type: 'NEW_FOLLOWER',
+      title: 'New Follower',
+      message: `${student.name} started following you.`,
     });
   } catch (error) {
     if (error.code === 'P2002') {

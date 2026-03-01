@@ -42,23 +42,6 @@ const Hero = () => {
             Book appointments, access expertise, and grow together. The modern platform for faculty-student collaboration.
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up" style={{ animationDelay: '200ms' }}>
-            <Button variant="hero" size="xl" onClick={() => navigate('/login')}>
-              Get Started
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button variant="heroOutline" size="xl" onClick={() => navigate('/login')}>
-              <Play className="mr-2 h-5 w-5" />
-              Try Demo
-            </Button>
-          </div>
-
-          {/* Demo credentials hint */}
-          <p className="mt-6 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: '400ms' }}>
-            Demo credentials available on login page
-          </p>
-
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 animate-slide-up" style={{ animationDelay: '300ms' }}>
             {[

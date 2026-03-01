@@ -124,7 +124,7 @@ let lastAutoCompleteCheck = new Date(0); // Initialize to epoch time
 exports.getMyAppointments = async (user) => {
 
   const now = new Date();
-  
+
   // Run auto-completion only once per minute to improve performance
   if (now.getTime() - lastAutoCompleteCheck.getTime() > 60000) {
     // Auto-complete past accepted appointments
@@ -148,7 +148,10 @@ exports.getMyAppointments = async (user) => {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            facultyProfile: {
+              select: { officeLocation: true }
+            }
           }
         }
       }
@@ -163,7 +166,8 @@ exports.getMyAppointments = async (user) => {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            department: true
           }
         }
       }
@@ -177,7 +181,11 @@ exports.getMyAppointments = async (user) => {
 /**
  * Update status (Faculty only)
  */
-exports.updateStatus = async (user, appointmentId, status) => {
+exports.acceptAppointment = async (user, appointmentId, duration) => {
+
+  if (!duration || duration < 15 || duration > 180) {
+    throw new AppError('Duration must be between 15 and 180 minutes', 400);
+  }
 
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
@@ -187,24 +195,63 @@ exports.updateStatus = async (user, appointmentId, status) => {
     throw new AppError('Appointment not found', 404);
   }
 
-  // Ensure faculty owns it
   if (appointment.facultyId !== user.id) {
     throw new AppError('Unauthorized', 403);
   }
 
+  if (appointment.status !== 'PENDING') {
+    throw new AppError('Only pending appointments can be accepted', 400);
+  }
+
   const updated = await prisma.appointment.update({
     where: { id: appointmentId },
-    data: { status },
+    data: { status: 'ACCEPTED', duration: parseInt(duration) },
   });
 
-  if (status === 'ACCEPTED' || status === 'REJECTED') {
-    await notificationsService.createNotification({
-      userId: appointment.studentId,
-      type: status === 'ACCEPTED' ? 'APPOINTMENT_ACCEPTED' : 'APPOINTMENT_REJECTED',
-      title: `Appointment ${status}`,
-      message: `Your appointment request has been ${status.toLowerCase()}.`,
-    });
+  await notificationsService.createNotification({
+    userId: appointment.studentId,
+    type: 'APPOINTMENT_ACCEPTED',
+    title: 'Appointment Accepted',
+    message: `Your appointment has been accepted (${duration} min).`,
+  });
+
+  return updated;
+};
+
+
+exports.rejectAppointment = async (user, appointmentId, reason) => {
+
+  if (!reason || !reason.trim()) {
+    throw new AppError('Rejection reason is required', 400);
   }
+
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+  });
+
+  if (!appointment) {
+    throw new AppError('Appointment not found', 404);
+  }
+
+  if (appointment.facultyId !== user.id) {
+    throw new AppError('Unauthorized', 403);
+  }
+
+  if (appointment.status !== 'PENDING') {
+    throw new AppError('Only pending appointments can be rejected', 400);
+  }
+
+  const updated = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { status: 'REJECTED', rejectionReason: reason.trim() },
+  });
+
+  await notificationsService.createNotification({
+    userId: appointment.studentId,
+    type: 'APPOINTMENT_REJECTED',
+    title: 'Appointment Rejected',
+    message: `Your appointment was rejected. Reason: ${reason.trim()}`,
+  });
 
   return updated;
 };
@@ -329,6 +376,20 @@ exports.requestReschedule = async (user, appointmentId, data) => {
       );
     }
 
+    // Check for conflicts (exclude current appointment)
+    const conflict = await tx.appointment.findFirst({
+      where: {
+        facultyId: appointment.facultyId,
+        date: new Date(date),
+        slot,
+        NOT: { id: appointmentId },
+      },
+    });
+
+    if (conflict) {
+      throw new AppError('This slot is already booked', 409);
+    }
+
     // Store proposed changes temporarily
     const updated = await tx.appointment.update({
       where: { id: appointmentId },
@@ -341,7 +402,7 @@ exports.requestReschedule = async (user, appointmentId, data) => {
 
     await notificationsService.createNotificationWithTx(tx, {
       userId: appointment.facultyId,
-      type: 'APPOINTMENT_REQUEST',
+      type: 'RESCHEDULE_REQUESTED',
       title: 'Reschedule Requested',
       message: 'Student requested to reschedule appointment.',
     });
@@ -356,7 +417,7 @@ exports.requestReschedule = async (user, appointmentId, data) => {
   });
 };
 
-  // Approve reschedule (Faculty only)
+// Approve reschedule (Faculty only)
 exports.approveReschedule = async (user, appointmentId) => {
 
   return await prisma.$transaction(async (tx) => {
@@ -424,7 +485,7 @@ exports.approveReschedule = async (user, appointmentId) => {
 
     await notificationsService.createNotificationWithTx(tx, {
       userId: appointment.studentId,
-      type: 'APPOINTMENT_ACCEPTED',
+      type: 'RESCHEDULE_APPROVED',
       title: 'Reschedule Approved',
       message: 'Faculty approved the new appointment time.',
     });
@@ -433,7 +494,7 @@ exports.approveReschedule = async (user, appointmentId) => {
   });
 };
 
-  // Reject reschedule (Faculty only)
+// Reject reschedule (Faculty only)
 exports.rejectReschedule = async (user, appointmentId) => {
 
   return await prisma.$transaction(async (tx) => {
@@ -457,7 +518,7 @@ exports.rejectReschedule = async (user, appointmentId) => {
 
     await notificationsService.createNotificationWithTx(tx, {
       userId: appointment.studentId,
-      type: 'APPOINTMENT_REJECTED',
+      type: 'RESCHEDULE_REJECTED',
       title: 'Reschedule Rejected',
       message: 'Faculty rejected the reschedule request.',
     });
