@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, MapPin, Check, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Clock, MapPin, Check, X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,7 @@ const FacultyAppointments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'upcoming' | 'completed'>('all');
 
   // Accept modal state
@@ -360,15 +362,29 @@ const FacultyAppointments = () => {
                                 )}
 
                                 {isAccepted && new Date(appointment.date) >= now && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-destructive"
-                                    onClick={() => cancelMutation.mutate(appointment.id)}
-                                    disabled={cancelMutation.isPending}
-                                  >
-                                    {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        const convId = (appointment as any).conversation?.id;
+                                        navigate(convId ? `/faculty/chat?conversationId=${convId}` : '/faculty/chat');
+                                      }}
+                                      className="text-primary"
+                                    >
+                                      <MessageCircle className="h-4 w-4 mr-1" />
+                                      Chat
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-destructive"
+                                      onClick={() => cancelMutation.mutate(appointment.id)}
+                                      disabled={cancelMutation.isPending}
+                                    >
+                                      {cancelMutation.isPending ? 'Cancelling...' : 'Cancel'}
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -406,8 +422,8 @@ const FacultyAppointments = () => {
                   key={d}
                   onClick={() => { setSelectedDuration(d); setUseCustomDuration(false); }}
                   className={`px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${!useCustomDuration && selectedDuration === d
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card hover:bg-accent border-border'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card hover:bg-accent border-border'
                     }`}
                 >
                   {d} min
@@ -416,8 +432,8 @@ const FacultyAppointments = () => {
               <button
                 onClick={() => setUseCustomDuration(true)}
                 className={`px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${useCustomDuration
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card hover:bg-accent border-border'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card hover:bg-accent border-border'
                   }`}
               >
                 Custom

@@ -153,6 +153,9 @@ exports.getMyAppointments = async (user) => {
               select: { officeLocation: true }
             }
           }
+        },
+        conversation: {
+          select: { id: true }
         }
       }
     });
@@ -169,6 +172,9 @@ exports.getMyAppointments = async (user) => {
             email: true,
             department: true
           }
+        },
+        conversation: {
+          select: { id: true }
         }
       }
     });
@@ -206,6 +212,19 @@ exports.acceptAppointment = async (user, appointmentId, duration) => {
   const updated = await prisma.appointment.update({
     where: { id: appointmentId },
     data: { status: 'ACCEPTED', duration: parseInt(duration) },
+  });
+
+  // Auto-create an approved APPOINTMENT chat
+  await prisma.conversation.upsert({
+    where: { appointmentId: appointment.id },
+    update: {},
+    create: {
+      type: 'APPOINTMENT',
+      appointmentId: appointment.id,
+      studentId: appointment.studentId,
+      facultyId: appointment.facultyId,
+      isApproved: true,
+    }
   });
 
   await notificationsService.createNotification({

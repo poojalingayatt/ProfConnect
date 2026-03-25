@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, MapPin, FileText, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, Clock, MapPin, FileText, Star, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ const StudentAppointments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('all');
   const [rescheduleModal, setRescheduleModal] = useState<{
     open: boolean;
@@ -355,6 +357,20 @@ const StudentAppointments = () => {
                                 <div className="flex flex-wrap gap-2">
                                   {!isPast && appointment.status !== 'RESCHEDULE_REQUESTED' && (appointment.status === 'ACCEPTED' || appointment.status === 'PENDING') && (
                                     <>
+                                      {appointment.status === 'ACCEPTED' && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            const convId = (appointment as any).conversation?.id;
+                                            navigate(convId ? `/student/chat?conversationId=${convId}` : '/student/chat');
+                                          }}
+                                          className="text-primary hover:text-primary"
+                                        >
+                                          <MessageCircle className="h-4 w-4 mr-1" />
+                                          Chat
+                                        </Button>
+                                      )}
                                       {appointment.status === 'ACCEPTED' && (
                                         <Button
                                           size="sm"

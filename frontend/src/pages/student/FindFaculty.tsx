@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { queryKeys } from '@/lib/queryKeys';
-import { Search, Star, MapPin, Heart, X, Calendar } from 'lucide-react';
+import { Search, Star, MapPin, Heart, X, Calendar, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import BookingModal from '@/components/booking/BookingModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,11 +26,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { facultyApi } from '@/api/faculty';
 import { Faculty } from '@/types/faculty';
 import { getFacultyAvailability } from '@/api/availability';
+import { startDirectChat } from '@/api/chat';
 
 const FindFaculty = () => {
   useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -138,6 +141,23 @@ const FindFaculty = () => {
     setTimeout(() => {
       setBookingModalOpen(true);
     }, 150);
+  };
+
+  const messageMutation = useMutation({
+    mutationFn: startDirectChat,
+    onSuccess: (conversation) => {
+      navigate(`/student/chat?conversationId=${conversation.id}`);
+    },
+    onError: (error: any) => {
+      toast({
+        description: error?.response?.data?.message || 'Failed to start chat',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  const handleMessageFaculty = (facultyId: number) => {
+    messageMutation.mutate(facultyId);
   };
 
   const clearFilters = () => {
@@ -348,13 +368,23 @@ const FindFaculty = () => {
                   <div className="px-5 pb-5 flex gap-3">
                     <Button
                       variant="outline"
-                      className="flex-1 rounded-lg"
-                      onClick={() => handleViewProfile(f)}
+                      size="icon"
+                      className="rounded-lg shrink-0"
+                      onClick={() => handleMessageFaculty(f.id)}
+                      title="Message Faculty"
+                      disabled={messageMutation.isPending}
                     >
-                      View Profile
+                      <MessageCircle className="h-4 w-4 min-w-[16px] text-muted-foreground" />
                     </Button>
                     <Button
-                      className="flex-1 rounded-lg bg-primary hover:bg-primary/90"
+                      variant="outline"
+                      className="flex-1 rounded-lg px-2"
+                      onClick={() => handleViewProfile(f)}
+                    >
+                      Profile
+                    </Button>
+                    <Button
+                      className="flex-1 rounded-lg bg-primary hover:bg-primary/90 px-2"
                       onClick={() => handleBookFromCard(f)}
                     >
                       Book

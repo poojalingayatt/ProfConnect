@@ -21,6 +21,7 @@ import StudentAppointments from "./pages/student/Appointments";
 import FollowedFaculty from "./pages/student/FollowedFaculty";
 import StudentSettings from "./pages/student/Settings";
 import StudentNotifications from "./pages/student/Notifications";
+import StudentChat from "./pages/student/Chat";
 
 // Faculty Pages
 import FacultyDashboard from "./pages/faculty/Dashboard";
@@ -29,6 +30,7 @@ import FacultyAppointments from "./pages/faculty/Appointments";
 import FacultyFollowers from "./pages/faculty/Followers";
 import FacultySettings from "./pages/faculty/Settings";
 import FacultyNotifications from "./pages/faculty/Notifications";
+import FacultyChat from "./pages/faculty/Chat";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -55,6 +57,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedUserType="STUDENT">
                   <StudentDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/student/chat"
+              element={
+                <ProtectedRoute allowedUserType="STUDENT">
+                  <StudentChat />
                 </ProtectedRoute>
               }
             />
@@ -111,6 +121,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedUserType="FACULTY">
                   <FacultyDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/faculty/chat"
+              element={
+                <ProtectedRoute allowedUserType="FACULTY">
+                  <FacultyChat />
                 </ProtectedRoute>
               }
             />
