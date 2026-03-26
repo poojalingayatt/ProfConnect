@@ -25,6 +25,7 @@ import {
   Clock,
   Users,
   Megaphone,
+  MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/context/NotificationsContext';
@@ -43,6 +44,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const studentNavItems = [
     { icon: Home, label: 'Dashboard', path: '/student/dashboard' },
     { icon: Search, label: 'Find Faculty', path: '/student/faculty' },
+    { icon: MessageCircle, label: 'Messages', path: '/student/chat' },
     { icon: Calendar, label: 'My Appointments', path: '/student/appointments' },
     { icon: Heart, label: 'Followed Faculty', path: '/student/followed' },
     { icon: Bell, label: 'Notifications', path: '/student/notifications' },
@@ -52,6 +54,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const facultyNavItems = [
     { icon: Home, label: 'Dashboard', path: '/faculty/dashboard' },
     { icon: Clock, label: 'Manage Availability', path: '/faculty/availability' },
+    { icon: MessageCircle, label: 'Messages', path: '/faculty/chat' },
     { icon: Calendar, label: 'Appointments', path: '/faculty/appointments' },
     { icon: Users, label: 'Followed By', path: '/faculty/followers' },
     { icon: Bell, label: 'Notifications', path: '/faculty/notifications' },

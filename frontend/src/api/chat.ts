@@ -2,13 +2,12 @@ import { api } from '@/lib/api';
 
 export type Conversation = {
   id: number;
-  type: 'DIRECT' | 'APPOINTMENT';
   isApproved: boolean;
-  appointmentId?: number;
   user: {
     id: number;
     name: string;
     avatar?: string;
+    isOnline?: boolean;
   };
   lastMessage?: string;
   lastMessageTime?: string;

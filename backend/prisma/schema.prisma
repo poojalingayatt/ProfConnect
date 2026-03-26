@@ -19,52 +19,52 @@ enum ConversationType {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String
-  role      UserRole
-  department String?
-  phone     String?
-  avatar    String?
-  resetToken String?
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  password         String
+  name             String
+  role             UserRole
+  department       String?
+  phone            String?
+  avatar           String?
+  resetToken       String?
   resetTokenExpiry DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // One-to-one relation for faculty profile
   facultyProfile FacultyProfile?
 
   // Follow relationships
-  following Follow[] @relation("StudentFollows")
-  followers Follow[] @relation("FacultyFollowers")
+  following           Follow[]      @relation("StudentFollows")
+  followers           Follow[]      @relation("FacultyFollowers")
   studentAppointments Appointment[] @relation("StudentAppointments")
   facultyAppointments Appointment[] @relation("FacultyAppointments")
-  studentReviews Review[] @relation("StudentReviews")
-  facultyReviews Review[] @relation("FacultyReviews")
+  studentReviews      Review[]      @relation("StudentReviews")
+  facultyReviews      Review[]      @relation("FacultyReviews")
 
-  availability AvailabilityRule[]
+  availability  AvailabilityRule[]
   notifications Notification[]
 
   // Chat relationships
   studentConversations Conversation[] @relation("StudentConversations")
   facultyConversations Conversation[] @relation("FacultyConversations")
-  messages           Message[]
+  messages             Message[]
 
   @@index([email])
   @@index([role])
 }
 
 model FacultyProfile {
-  userId        Int   @id
-  user          User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int  @id
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  bio           String?
+  bio            String?
   officeLocation String?
-  isOnline      Boolean @default(false)
+  isOnline       Boolean @default(false)
 
-  rating      Float  @default(0)
-  reviewCount Int    @default(0)
+  rating      Float @default(0)
+  reviewCount Int   @default(0)
 
   specializations Specialization[]
 
@@ -72,10 +72,10 @@ model FacultyProfile {
 }
 
 model Specialization {
-  id              Int            @id @default(autoincrement())
-  name            String
+  id               Int            @id @default(autoincrement())
+  name             String
   facultyProfileId Int
-  facultyProfile  FacultyProfile @relation(fields: [facultyProfileId], references: [userId], onDelete: Cascade)
+  facultyProfile   FacultyProfile @relation(fields: [facultyProfileId], references: [userId], onDelete: Cascade)
 
   @@index([facultyProfileId])
 }
@@ -86,12 +86,11 @@ model Follow {
   facultyId Int
   createdAt DateTime @default(now())
 
-  student   User @relation("StudentFollows", fields: [studentId], references: [id], onDelete: Cascade)
-  faculty   User @relation("FacultyFollowers", fields: [facultyId], references: [id], onDelete: Cascade)
+  student User @relation("StudentFollows", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty User @relation("FacultyFollowers", fields: [facultyId], references: [id], onDelete: Cascade)
 
   // Prevent duplicate follows
   @@unique([studentId, facultyId])
-
   @@index([studentId])
   @@index([facultyId])
 }
@@ -102,7 +101,7 @@ model AvailabilityRule {
   day       String
   slots     String[]
 
-  faculty   User     @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty User @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId])
 }
@@ -117,35 +116,34 @@ enum AppointmentStatus {
 }
 
 model Appointment {
-  id          Int                @id @default(autoincrement())
-  studentId   Int
-  facultyId   Int
+  id        Int @id @default(autoincrement())
+  studentId Int
+  facultyId Int
 
-  date        DateTime
-  slot        String
+  date DateTime
+  slot String
 
   title       String
   description String?
 
-  status      AppointmentStatus  @default(PENDING)
+  status          AppointmentStatus @default(PENDING)
   duration        Int?
   rejectionReason String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  student     User @relation("StudentAppointments", fields: [studentId], references: [id], onDelete: Cascade)
-  faculty     User @relation("FacultyAppointments", fields: [facultyId], references: [id], onDelete: Cascade)
+  student User @relation("StudentAppointments", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty User @relation("FacultyAppointments", fields: [facultyId], references: [id], onDelete: Cascade)
 
-  review Review?
-  conversation Conversation?
-  
-  @@index([studentId])
-  @@index([facultyId])
-  @@index([date])
+  review  Review?
+  Message Message[]
 
   // THIS prevents double booking at DB level
   @@unique([facultyId, date, slot])
+  @@index([studentId])
+  @@index([facultyId])
+  @@index([date])
 }
 
 enum NotificationType {
@@ -163,15 +161,15 @@ enum NotificationType {
 }
 
 model Notification {
-  id        Int               @id @default(autoincrement())
+  id        Int              @id @default(autoincrement())
   userId    Int
   type      NotificationType
   title     String
   message   String
-  read      Boolean           @default(false)
-  createdAt DateTime          @default(now())
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
 
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([read])
@@ -180,43 +178,39 @@ model Notification {
 }
 
 model Review {
-  id            Int      @id @default(autoincrement())
-  appointmentId Int      @unique
+  id            Int @id @default(autoincrement())
+  appointmentId Int @unique
   studentId     Int
   facultyId     Int
 
-  rating        Int
-  comment       String?
+  rating  Int
+  comment String?
 
-  createdAt     DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  student       User        @relation("StudentReviews", fields: [studentId], references: [id], onDelete: Cascade)
-  faculty       User        @relation("FacultyReviews", fields: [facultyId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  student     User        @relation("StudentReviews", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty     User        @relation("FacultyReviews", fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId])
 }
 
 model Conversation {
-  id            Int      @id @default(autoincrement())
-  
-  type          ConversationType
-  
-  appointmentId Int?     @unique
-  
-  studentId     Int
-  facultyId     Int
-  
-  isApproved    Boolean  @default(false)
-  
-  createdAt     DateTime @default(now())
-  
-  messages      Message[]
-  
-  student       User     @relation("StudentConversations", fields: [studentId], references: [id], onDelete: Cascade)
-  faculty       User     @relation("FacultyConversations", fields: [facultyId], references: [id], onDelete: Cascade)
-  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  
+  id Int @id @default(autoincrement())
+
+  studentId Int
+  facultyId Int
+
+  isApproved Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  messages Message[]
+
+  student User @relation("StudentConversations", fields: [studentId], references: [id], onDelete: Cascade)
+  faculty User @relation("FacultyConversations", fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, facultyId])
   @@index([studentId])
   @@index([facultyId])
 }
@@ -226,10 +220,12 @@ model Message {
   conversationId Int
   senderId       Int
   content        String
+  appointmentId  Int?
   createdAt      DateTime @default(now())
-  
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
   @@index([conversationId])
 }

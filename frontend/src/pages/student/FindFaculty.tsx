@@ -260,11 +260,6 @@ const FindFaculty = () => {
           )}
         </div>
 
-        {/* Results count */}
-        <p className="text-sm text-muted-foreground">
-          {isLoading ? 'Loading...' : `Showing ${facultyList.length} faculty member${facultyList.length !== 1 ? 's' : ''}`}
-        </p>
-
         {/* Loading state */}
         {isLoading && (
           <div className="flex justify-center py-12">
@@ -368,13 +363,12 @@ const FindFaculty = () => {
                   <div className="px-5 pb-5 flex gap-3">
                     <Button
                       variant="outline"
-                      size="icon"
-                      className="rounded-lg shrink-0"
+                      className="rounded-lg px-3"
                       onClick={() => handleMessageFaculty(f.id)}
-                      title="Message Faculty"
                       disabled={messageMutation.isPending}
                     >
-                      <MessageCircle className="h-4 w-4 min-w-[16px] text-muted-foreground" />
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Message
                     </Button>
                     <Button
                       variant="outline"
@@ -521,6 +515,15 @@ const FindFaculty = () => {
 
                 {/* ── Footer Buttons ── */}
                 <div className="p-6 pt-5 flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-none rounded-lg"
+                    onClick={() => handleMessageFaculty(selectedFaculty.id)}
+                    disabled={messageMutation.isPending}
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Message
+                  </Button>
                   <Button
                     variant="outline"
                     className="flex-none px-5 rounded-lg"

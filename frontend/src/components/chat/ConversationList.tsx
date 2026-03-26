@@ -69,125 +69,89 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   }
 
   const renderConversation = (conv: Conversation) => (
-    <button
+    <div
       key={conv.id}
-      onClick={() => onSelectConversation(conv.id)}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-muted",
-        activeConversationId === conv.id ? "bg-muted" : "bg-transparent"
+        'rounded-lg border p-2 transition-colors',
+        activeConversationId === conv.id
+          ? 'border-primary/30 bg-muted'
+          : 'border-transparent bg-transparent hover:bg-muted/60'
       )}
     >
-      <div className="relative shrink-0">
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={conv.user.avatar} alt={conv.user.name} />
-          <AvatarFallback>{conv.user.name.charAt(0)}</AvatarFallback>
-        </Avatar>
-        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-green-500"></span>
-      </div>
+      <button
+        onClick={() => onSelectConversation(conv.id)}
+        className="flex w-full items-center gap-3 rounded-md p-1 text-left"
+      >
+        <div className="relative shrink-0">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={conv.user.avatar} alt={conv.user.name} />
+            <AvatarFallback>{conv.user.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <span
+            className={cn(
+              'absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background',
+              conv.user.isOnline ? 'bg-green-500' : 'bg-muted-foreground/40'
+            )}
+          />
+        </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex items-center justify-between">
-          <span className="truncate font-medium flex items-center gap-2">
-            {conv.user.name}
-            {!conv.isApproved && conv.type === 'DIRECT' && userRole === 'STUDENT' && (
-              <span className="inline-flex items-center rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning border border-warning/20">
-                Pending
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="truncate font-medium flex items-center gap-2">
+              {conv.user.name}
+              {!conv.isApproved && (
+                <span className="inline-flex items-center rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning border border-warning/20">
+                  Pending
+                </span>
+              )}
+            </span>
+            {conv.lastMessageTime && (
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                {formatDistanceToNow(new Date(conv.lastMessageTime), { addSuffix: false })}
               </span>
             )}
-          </span>
-          {conv.lastMessageTime && (
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-              {formatDistanceToNow(new Date(conv.lastMessageTime), { addSuffix: false })}
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="truncate text-xs text-muted-foreground">
+              {conv.lastMessage || (conv.isApproved ? 'Start chatting' : 'Waiting for approval')}
             </span>
-          )}
+            {conv.unreadCount && conv.unreadCount > 0 ? (
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                {conv.unreadCount}
+              </span>
+            ) : null}
+          </div>
         </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="truncate text-xs text-muted-foreground">
-            {conv.lastMessage || (conv.isApproved ? "Start chatting" : "Pending request")}
-          </span>
-          {conv.unreadCount && conv.unreadCount > 0 ? (
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground ml-2">
-              {conv.unreadCount}
-            </span>
-          ) : null}
+      </button>
+
+      {userRole === 'FACULTY' && !conv.isApproved ? (
+        <div className="mt-2 flex gap-2 px-1 pb-1">
+          <Button
+            size="sm"
+            variant="default"
+            className="h-7 flex-1 text-xs"
+            onClick={() => approveMutation.mutate(conv.id)}
+            disabled={approveMutation.isPending}
+          >
+            <Check className="mr-1 h-3 w-3" /> Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 flex-1 text-xs"
+            onClick={() => rejectMutation.mutate(conv.id)}
+            disabled={rejectMutation.isPending}
+          >
+            <X className="mr-1 h-3 w-3" /> Reject
+          </Button>
         </div>
-      </div>
-    </button>
+      ) : null}
+    </div>
   );
 
-  const pendingRequests = conversations.filter(c => c.type === 'DIRECT' && !c.isApproved && userRole === 'FACULTY');
-  const appointmentChats = conversations.filter(c => c.type === 'APPOINTMENT' && c.isApproved);
-  const directChats = conversations.filter(c => c.type === 'DIRECT' && (c.isApproved || userRole === 'STUDENT'));
-
   return (
-    <div className="flex flex-col p-2 space-y-4">
-      {/* Pending Requests ONLY FOR FACULTY */}
-      {pendingRequests.length > 0 && (
-        <div className="space-y-1">
-          <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Pending Requests ({pendingRequests.length})
-          </h3>
-          <div className="flex flex-col gap-1">
-            {pendingRequests.map(conv => (
-              <div key={conv.id} className="flex flex-col bg-muted/30 rounded-lg p-3 border border-warning/20">
-                <div className="flex items-center gap-3 mb-3">
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarFallback>{conv.user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <span className="font-medium text-sm flex items-center">{conv.user.name}</span>
-                    <span className="text-xs text-muted-foreground">Wants to message you</span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="h-7 text-xs flex-1"
-                    onClick={() => approveMutation.mutate(conv.id)}
-                    disabled={approveMutation.isPending}
-                  >
-                    <Check className="h-3 w-3 mr-1" /> Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs flex-1"
-                    onClick={() => rejectMutation.mutate(conv.id)}
-                    disabled={rejectMutation.isPending}
-                  >
-                    <X className="h-3 w-3 mr-1" /> Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Appointment Chats */}
-      {appointmentChats.length > 0 && (
-        <div className="space-y-1">
-          <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Appointments
-          </h3>
-          <div className="flex flex-col gap-1">
-            {appointmentChats.map(renderConversation)}
-          </div>
-        </div>
-      )}
-
-      {/* Direct Chats */}
-      {directChats.length > 0 && (
-        <div className="space-y-1">
-          <h3 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Direct Messages
-          </h3>
-          <div className="flex flex-col gap-1">
-            {directChats.map(renderConversation)}
-          </div>
-        </div>
-      )}
+    <div className="flex flex-col gap-2 p-2">
+      {conversations.map(renderConversation)}
     </div>
   );
 };

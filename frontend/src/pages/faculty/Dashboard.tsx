@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, Users, CheckCircle, ArrowRight } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
 import { getAppointments, acceptAppointment, rejectAppointment } from '@/api/appointments';
+import { getConversations } from '@/api/chat';
 import { facultyApi } from '@/api/faculty';
 
 const DURATION_OPTIONS = [30, 45, 60, 90];
@@ -51,6 +52,12 @@ const FacultyDashboard = () => {
   const { data: followers = [] } = useQuery({
     queryKey: ['myFollowers'],
     queryFn: facultyApi.getMyFollowers,
+    enabled: !!user,
+  });
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: getConversations,
     enabled: !!user,
   });
 
@@ -332,6 +339,45 @@ const FacultyDashboard = () => {
             </Card>
 
             {/* Quick Actions */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Messages</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => navigate('/faculty/chat')}>
+                  View All
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {conversations.length === 0 ? (
+                  <div className="py-6 text-center">
+                    <MessageCircle className="mx-auto mb-2 h-10 w-10 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">No conversations yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {conversations.slice(0, 3).map((conversation) => (
+                      <button
+                        key={conversation.id}
+                        onClick={() => navigate(`/faculty/chat?conversationId=${conversation.id}`)}
+                        className="flex w-full items-center gap-3 rounded-lg bg-accent/40 p-3 text-left transition-colors hover:bg-accent/60"
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={conversation.user.avatar} />
+                          <AvatarFallback>{conversation.user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">{conversation.user.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {conversation.lastMessage || (conversation.isApproved ? 'Start chatting' : 'Waiting for approval')}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Quick Actions</CardTitle>

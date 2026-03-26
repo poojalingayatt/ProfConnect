@@ -14,23 +14,10 @@ import RescheduleModalNew from '@/components/booking/RescheduleModal';
 import AddNotesModal from '@/components/modals/AddNotesModal';
 import { ReviewModal } from '@/components/reviews/ReviewModal';
 import { useToast } from '@/hooks/use-toast';
-import { getAppointments, cancelAppointment, requestReschedule } from '@/api/appointments';
+import { AppointmentListItem, getAppointments, cancelAppointment, requestReschedule } from '@/api/appointments';
 import { createReview } from '@/api/reviews';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
-
-type Appointment = {
-  id: number;
-  studentId: number;
-  facultyId: number;
-  title: string;
-  description?: string;
-  date: string;
-  time: string;
-  duration?: number;
-  status: AppointmentStatus;
-  location?: string;
-};
 
 const StudentAppointments = () => {
   const { user } = useAuth();
@@ -40,7 +27,7 @@ const StudentAppointments = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'past'>('all');
   const [rescheduleModal, setRescheduleModal] = useState<{
     open: boolean;
-    appointment: Appointment | null;
+    appointment: AppointmentListItem | null;
   }>({ open: false, appointment: null });
   const [newRescheduleModal, setNewRescheduleModal] = useState<{
     open: boolean;
@@ -52,11 +39,11 @@ const StudentAppointments = () => {
   } | null>(null);
   const [notesModal, setNotesModal] = useState<{
     open: boolean;
-    appointment: Appointment | null;
+    appointment: AppointmentListItem | null;
   }>({ open: false, appointment: null });
   const [reviewModal, setReviewModal] = useState<{
     open: boolean;
-    appointment: Appointment | null;
+    appointment: AppointmentListItem | null;
   }>({ open: false, appointment: null });
 
   const {
@@ -362,13 +349,13 @@ const StudentAppointments = () => {
                                           size="sm"
                                           variant="outline"
                                           onClick={() => {
-                                            const convId = (appointment as any).conversation?.id;
+                                            const convId = appointment.conversationId;
                                             navigate(convId ? `/student/chat?conversationId=${convId}` : '/student/chat');
                                           }}
                                           className="text-primary hover:text-primary"
                                         >
                                           <MessageCircle className="h-4 w-4 mr-1" />
-                                          Chat
+                                          Open Chat
                                         </Button>
                                       )}
                                       {appointment.status === 'ACCEPTED' && (

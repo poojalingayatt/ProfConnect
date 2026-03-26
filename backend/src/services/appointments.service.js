@@ -13,6 +13,38 @@ const prisma = require('../config/database');
 const notificationsService = require('./notifications.service');
 const AppError = require('../utils/AppError');
 
+async function attachConversationIds(user, appointments) {
+  if (!appointments.length) {
+    return appointments;
+  }
+
+  const conversations = await prisma.conversation.findMany({
+    where:
+      user.role === 'STUDENT'
+        ? { studentId: user.id }
+        : { facultyId: user.id },
+    select: {
+      id: true,
+      studentId: true,
+      facultyId: true,
+    },
+  });
+
+  const conversationMap = new Map(
+    conversations.map((conversation) => [
+      `${conversation.studentId}:${conversation.facultyId}`,
+      conversation.id,
+    ])
+  );
+
+  return appointments.map((appointment) => ({
+    ...appointment,
+    conversationId:
+      conversationMap.get(`${appointment.studentId}:${appointment.facultyId}`) ??
+      null,
+  }));
+}
+
 /**
  * Create appointment
  */
@@ -141,7 +173,7 @@ exports.getMyAppointments = async (user) => {
   }
 
   if (user.role === 'STUDENT') {
-    return await prisma.appointment.findMany({
+    const appointments = await prisma.appointment.findMany({
       where: { studentId: user.id },
       include: {
         faculty: {
@@ -154,15 +186,14 @@ exports.getMyAppointments = async (user) => {
             }
           }
         },
-        conversation: {
-          select: { id: true }
-        }
-      }
+      },
     });
+
+    return attachConversationIds(user, appointments);
   }
 
   if (user.role === 'FACULTY') {
-    return await prisma.appointment.findMany({
+    const appointments = await prisma.appointment.findMany({
       where: { facultyId: user.id },
       include: {
         student: {
@@ -172,12 +203,11 @@ exports.getMyAppointments = async (user) => {
             email: true,
             department: true
           }
-        },
-        conversation: {
-          select: { id: true }
         }
-      }
+      },
     });
+
+    return attachConversationIds(user, appointments);
   }
 
   return [];
@@ -209,22 +239,44 @@ exports.acceptAppointment = async (user, appointmentId, duration) => {
     throw new AppError('Only pending appointments can be accepted', 400);
   }
 
-  const updated = await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: { status: 'ACCEPTED', duration: parseInt(duration) },
-  });
+  const updated = await prisma.$transaction(async (tx) => {
+    const acceptedAppointment = await tx.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'ACCEPTED', duration: parseInt(duration) },
+    });
 
-  // Auto-create an approved APPOINTMENT chat
-  await prisma.conversation.upsert({
-    where: { appointmentId: appointment.id },
-    update: {},
-    create: {
-      type: 'APPOINTMENT',
-      appointmentId: appointment.id,
-      studentId: appointment.studentId,
-      facultyId: appointment.facultyId,
-      isApproved: true,
+    const existingConversation = await tx.conversation.findUnique({
+      where: {
+        studentId_facultyId: {
+          studentId: appointment.studentId,
+          facultyId: appointment.facultyId,
+        },
+      },
+    });
+
+    if (existingConversation) {
+      await tx.conversation.update({
+        where: {
+          studentId_facultyId: {
+            studentId: appointment.studentId,
+            facultyId: appointment.facultyId,
+          },
+        },
+        data: {
+          isApproved: true,
+        },
+      });
+    } else {
+      await tx.conversation.create({
+        data: {
+          studentId: appointment.studentId,
+          facultyId: appointment.facultyId,
+          isApproved: true,
+        },
+      });
     }
+
+    return acceptedAppointment;
   });
 
   await notificationsService.createNotification({

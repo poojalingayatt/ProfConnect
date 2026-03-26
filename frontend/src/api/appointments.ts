@@ -8,7 +8,37 @@ export interface CreateAppointmentPayload {
   description?: string;
 }
 
-export const getAppointments = async () => {
+export interface AppointmentListItem {
+  id: number;
+  studentId: number;
+  facultyId: number;
+  title: string;
+  description?: string;
+  date: string;
+  time?: string;
+  slot: string;
+  duration?: number;
+  status: string;
+  rejectionReason?: string;
+  hasReviewed?: boolean;
+  conversationId?: number | null;
+  faculty?: {
+    id: number;
+    name: string;
+    email: string;
+    facultyProfile?: {
+      officeLocation?: string;
+    };
+  };
+  student?: {
+    id: number;
+    name: string;
+    email: string;
+    department?: string;
+  };
+}
+
+export const getAppointments = async (): Promise<AppointmentListItem[]> => {
   const res = await api.get('/appointments');
   return res.data.appointments;
 };

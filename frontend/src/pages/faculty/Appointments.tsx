@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useToast } from '@/hooks/use-toast';
-import { getAppointments, acceptAppointment, rejectAppointment, cancelAppointment, approveReschedule, rejectReschedule } from '@/api/appointments';
+import { AppointmentListItem, getAppointments, acceptAppointment, rejectAppointment, cancelAppointment, approveReschedule, rejectReschedule } from '@/api/appointments';
 
 type AppointmentStatus = 'accepted' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 
@@ -44,7 +44,7 @@ const FacultyAppointments = () => {
   const [rejectionReason, setRejectionReason] = useState('');
 
   const {
-    data: facultyAppointments = [],
+    data: facultyAppointments = [] as AppointmentListItem[],
     isLoading,
     isError
   } = useQuery({
@@ -367,13 +367,13 @@ const FacultyAppointments = () => {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => {
-                                        const convId = (appointment as any).conversation?.id;
+                                        const convId = appointment.conversationId;
                                         navigate(convId ? `/faculty/chat?conversationId=${convId}` : '/faculty/chat');
                                       }}
                                       className="text-primary"
                                     >
                                       <MessageCircle className="h-4 w-4 mr-1" />
-                                      Chat
+                                      Open Chat
                                     </Button>
                                     <Button
                                       size="sm"

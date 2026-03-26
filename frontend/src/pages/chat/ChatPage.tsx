@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { getConversations, getMessages, sendMessage } from '@/api/chat';
@@ -59,6 +59,24 @@ export const ChatPage: React.FC = () => {
 
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) || null;
+
+  useEffect(() => {
+    setActiveConversationId(initialConvId);
+  }, [initialConvId]);
+
+  useEffect(() => {
+    if (activeConversationId) {
+      return;
+    }
+
+    if (!conversations.length) {
+      return;
+    }
+
+    const firstConversation = conversations[0];
+    setActiveConversationId(firstConversation.id);
+    setSearchParams({ conversationId: firstConversation.id.toString() });
+  }, [activeConversationId, conversations, setSearchParams]);
 
   if (isConversationsError) {
     return (

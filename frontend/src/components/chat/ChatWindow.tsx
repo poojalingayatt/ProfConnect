@@ -66,7 +66,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
           <div>
             <h3 className="font-semibold">{conversation.user.name}</h3>
-            <p className="text-xs text-green-600 font-medium">Online</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {conversation.user.isOnline ? 'Online' : 'Offline'}
+            </p>
           </div>
         </div>
 
