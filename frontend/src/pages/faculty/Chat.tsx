@@ -4,11 +4,8 @@ import DashboardLayout from '@/components/Layout/DashboardLayout';
 
 const FacultyChat: React.FC = () => {
   return (
-    <DashboardLayout>
-      <div className="flex-1 space-y-4 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">Messages</h2>
-        </div>
+    <DashboardLayout disableContentPadding disableMainScroll contentClassName="h-[calc(100vh-4rem)]">
+      <div className="h-full">
         <ChatPage />
       </div>
     </DashboardLayout>

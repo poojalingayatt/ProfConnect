@@ -93,6 +93,8 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
   };
 
+   const isNearBottomRef = useRef(true);
+
   // Check if user has scrolled up
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -108,8 +110,6 @@ export const MessageList: React.FC<MessageListProps> = ({
       lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   };
-
-  const isNearBottomRef = useRef(true);
 
   // Auto-scroll to bottom when new messages arrive or pending media changes
   useEffect(() => {
@@ -150,7 +150,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <div 
-      className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 relative hide-scrollbar"
+      className="relative flex h-full min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 hide-scrollbar"
       ref={scrollRef}
       onScroll={handleScroll}
       style={{ scrollBehavior: 'smooth' }}
@@ -399,6 +399,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           size="icon"
           className="fixed bottom-24 right-8 h-10 w-10 rounded-full shadow-lg z-10"
           variant="secondary"
+          aria-label="Scroll to bottom"
         >
           <ArrowDown className="h-5 w-5" />
         </Button>

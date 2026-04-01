@@ -103,7 +103,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     : 'Type a message…';
 
   return (
-    <div className="border-t bg-background p-4">
+    <div className="shrink-0 border-t bg-background p-4">
       {/* Typing indicator label */}
       {typingUser && !isUploading && (
         <p className="mb-1 px-2 text-xs text-muted-foreground animate-pulse">

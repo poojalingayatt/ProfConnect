@@ -26,6 +26,8 @@ export const ChatPage: React.FC = () => {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [pendingMedia, setPendingMedia] = useState<PendingMediaMessage | null>(null);
   const [lastSelectedFile, setLastSelectedFile] = useState<File | null>(null);
+  const [isContactsCollapsed, setIsContactsCollapsed] = useState(false);
+  const [isMobileContactsOpen, setIsMobileContactsOpen] = useState(false);
 
   // Typing indicator state: name of who is typing (null if nobody)
   const [typingUser, setTypingUser] = useState<string | null>(null);
@@ -64,10 +66,19 @@ export const ChatPage: React.FC = () => {
   const handleSelectConversation = (id: number) => {
     setActiveConversationId(id);
     setSearchParams({ conversationId: id.toString() });
+    setIsMobileContactsOpen(false);
     // Mark messages read when switching conversations
     markRead(id).catch(() => {/* best-effort */});
     queryClient.invalidateQueries({ queryKey: ['conversations'] });
   };
+
+  const handleToggleContacts = useCallback(() => {
+    if (window.innerWidth < 768) {
+      setIsMobileContactsOpen((prev) => !prev);
+      return;
+    }
+    setIsContactsCollapsed((prev) => !prev);
+  }, []);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
 
@@ -215,6 +226,7 @@ export const ChatPage: React.FC = () => {
     setIsUploadingMedia(true);
     setPendingMedia({
       id: `pending-${Date.now()}`,
+      conversationId: activeConversationId,
       senderId: user.id,
       fileName: file.name,
       fileType: file.type,
@@ -298,7 +310,7 @@ export const ChatPage: React.FC = () => {
 
   if (isConversationsError) {
     return (
-      <Card className="flex h-[calc(100vh-120px)] min-h-[500px] w-full items-center justify-center border">
+      <Card className="flex h-full min-h-0 w-full items-center justify-center border">
         <div className="text-center text-muted-foreground">
           <AlertCircle className="mx-auto mb-3 h-10 w-10 opacity-50" />
           <p className="font-medium">Failed to load conversations</p>
@@ -309,13 +321,18 @@ export const ChatPage: React.FC = () => {
   }
 
   return (
-    <Card className="flex h-[calc(100vh-120px)] min-h-[500px] w-full overflow-hidden border">
-      {/* Sidebar */}
-      <div className="w-full max-w-[320px] flex-col border-r bg-muted/10 flex sm:flex md:w-80">
-        <div className="flex h-16 items-center border-b px-4">
-          <h2 className="text-lg font-semibold">Messages</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto">
+    <Card className="relative flex h-full min-h-0 w-full overflow-hidden border">
+      {/* Contacts panel */}
+      <div
+        className={`absolute inset-y-0 left-0 z-20 w-[320px] max-w-[85vw] border-r bg-muted/10 transition-transform duration-300 md:static md:translate-x-0 ${
+          isMobileContactsOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${
+          isContactsCollapsed
+            ? 'md:w-0 md:min-w-0 md:overflow-hidden md:border-r-0'
+            : 'md:w-[320px] md:min-w-[300px]'
+        }`}
+      >
+        <div className="h-full min-h-0 overflow-y-auto">
           <ConversationList
             conversations={conversations}
             activeConversationId={activeConversationId}
@@ -326,8 +343,17 @@ export const ChatPage: React.FC = () => {
         </div>
       </div>
 
+      {isMobileContactsOpen && (
+        <button
+           type="button"
+          className="absolute inset-0 z-10 bg-foreground/30 md:hidden"
+          onClick={() => setIsMobileContactsOpen(false)}
+          aria-label="Close conversations panel"
+        />
+      )}
+
       {/* Chat area */}
-      <div className={`${activeConversationId ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
+      <div className={`${activeConversationId ? 'flex' : 'hidden md:flex'} min-w-0 min-h-0 flex-1 flex-col`}>
         <ChatWindow
           conversation={activeConversation}
           messages={messages}
@@ -342,6 +368,7 @@ export const ChatPage: React.FC = () => {
           typingUser={typingUser ?? undefined}
           onTypingStart={handleTypingStart}
           onTypingStop={handleTypingStop}
+          onToggleContacts={handleToggleContacts}
         />
       </div>
     </Card>

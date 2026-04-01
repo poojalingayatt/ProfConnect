@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -32,14 +32,29 @@ import { useNotifications } from '@/context/NotificationsContext';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  disableContentPadding?: boolean;
+  contentClassName?: string;
+  disableMainScroll?: boolean;
 }
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout = ({
+  children,
+  disableContentPadding = false,
+  contentClassName,
+  disableMainScroll = false,
+}: DashboardLayoutProps) => {
   const { user, logout } = useAuth();
   const { notifications, unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const studentNavItems = [
     { icon: Home, label: 'Dashboard', path: '/student/dashboard' },
@@ -72,8 +87,17 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     navigate('/');
   };
 
+  useEffect(() => {
+    document.documentElement.classList.add('dashboard-scroll-lock');
+    document.body.classList.add('dashboard-scroll-lock');
+    return () => {
+      document.documentElement.classList.remove('dashboard-scroll-lock');
+      document.body.classList.remove('dashboard-scroll-lock');
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-hidden bg-background">
       {/* Top Navigation */}
       <header className="fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40">
         <div className="h-full px-4 flex items-center justify-between">
@@ -84,6 +108,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               className="lg:hidden p-2 rounded-lg hover:bg-accent transition-colors"
             >
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <button
+              onClick={() => setSidebarCollapsed((prev) => !prev)}
+              className="hidden lg:inline-flex p-2 rounded-lg hover:bg-accent transition-colors"
+            >
+              <Menu className="h-5 w-5" />
             </button>
 
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
@@ -169,7 +199,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-16 left-0 bottom-0 w-64 bg-card border-r border-border transition-transform duration-300 z-30',
+          'fixed top-16 left-0 bottom-0 bg-card border-r border-border transition-all duration-300 z-30',
+          sidebarCollapsed ? 'lg:w-16' : 'lg:w-64',
+          'w-64',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
@@ -184,14 +216,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   setSidebarOpen(false);
                 }}
                 className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
+                  'w-full flex items-center rounded-lg text-sm font-medium transition-colors',
+                  sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3',
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                 )}
+                title={sidebarCollapsed ? item.label : undefined}
               >
                 <item.icon className="h-5 w-5" />
-                {item.label}
+                {!sidebarCollapsed && item.label}
               </button>
             );
           })}
@@ -199,9 +233,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
         {/* Logout button at bottom */}
         <div className="absolute bottom-4 left-4 right-4">
-          <Button variant="outline" className="w-full justify-start gap-3" onClick={handleLogout}>
+          <Button
+            variant="outline"
+            className={cn('w-full', sidebarCollapsed ? 'justify-center px-2' : 'justify-start gap-3')}
+            onClick={handleLogout}
+            title={sidebarCollapsed ? 'Logout' : undefined}
+          >
             <LogOut className="h-5 w-5" />
-            Logout
+            {!sidebarCollapsed && 'Logout'}
           </Button>
         </div>
       </aside>
@@ -215,8 +254,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       )}
 
       {/* Main content */}
-      <main className="pt-16 lg:pl-64 min-h-screen">
-        <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+      <main
+        className={cn(
+          'pt-16 h-screen transition-all duration-300',
+          sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64',
+          disableMainScroll ? 'overflow-hidden' : 'overflow-y-auto'
+        )}
+      >
+        <div
+          className={cn(
+            disableContentPadding ? 'h-[calc(100vh-4rem)]' : 'p-4 sm:p-6 lg:p-8',
+            contentClassName
+          )}
+        >
+          {children}
+        </div>
       </main>
     </div>
   );

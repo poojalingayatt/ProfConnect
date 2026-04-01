@@ -4,7 +4,7 @@ import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Info, MoreVertical, Phone, Video } from 'lucide-react';
+import { Info, Menu, MoreVertical, Phone, Video } from 'lucide-react';
 
 interface ChatWindowProps {
   conversation: Conversation | null;
@@ -20,6 +20,7 @@ interface ChatWindowProps {
   typingUser?: string;
   onTypingStart?: () => void;
   onTypingStop?: () => void;
+  onToggleContacts?: () => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -36,6 +37,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   typingUser,
   onTypingStart,
   onTypingStop,
+  onToggleContacts,
 }) => {
   if (!conversation) {
     return (
@@ -67,10 +69,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   return (
-    <div className="flex flex-1 flex-col h-full bg-background">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3 bg-card">
         <div className="flex items-center gap-3">
+          {onToggleContacts && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground"
+              onClick={onToggleContacts}
+              title="Toggle conversations"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
           <div className="relative">
             <Avatar>
               <AvatarImage src={conversation.user.avatar} alt={conversation.user.name} />
@@ -104,7 +117,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Message List Area */}
-      <div className="flex-1 overflow-hidden relative bg-muted/10">
+      <div className="relative flex-1 min-h-0 overflow-hidden bg-muted/10">
         <MessageList
           messages={messages}
           pendingMedia={pendingMedia}
