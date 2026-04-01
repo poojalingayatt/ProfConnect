@@ -70,6 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (mounted) {
           setUser(authenticatedUser);
+          // Initialize socket connection for existing session
+          initSocket(currentToken);
         }
       } catch (err) {
         // Any error (401 or network) = invalid session
@@ -103,6 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token.set(nextToken);
         setUser(nextUser);
 
+        // Initialize socket connection after successful login
+        initSocket(nextToken);
+
         return nextUser;
       } catch (err) {
         if (isAxiosError(err)) {
@@ -126,6 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       token.set(nextToken);
       setUser(nextUser);
+
+      // Initialize socket connection after successful registration
+      initSocket(nextToken);
 
       return nextUser;
     } catch (err) {

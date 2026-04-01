@@ -12,5 +12,6 @@ router.patch('/:id/approve', chatController.approveChat);
 router.patch('/:id/reject', chatController.rejectChat);
 router.get('/:id/messages', chatController.getMessages);
 router.post('/:id/messages', chatController.sendMessage);
+router.patch('/:id/read', chatController.markRead);
 
 module.exports = router;

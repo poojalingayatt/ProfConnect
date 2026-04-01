@@ -15,6 +15,7 @@ const rateLimit = require('express-rate-limit');
 const reviewsRoutes = require('./routes/reviews.routes');
 const adminRoutes = require('./routes/admin.routes');
 const chatRoutes = require('./routes/chat.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // 404 handler
 app.use((req, res) => {

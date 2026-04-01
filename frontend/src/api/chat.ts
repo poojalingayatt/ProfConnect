@@ -16,10 +16,27 @@ export type Conversation = {
 
 export type Message = {
   id: number;
+  conversationId: number;
   senderId: number;
-  content: string;
+  content?: string | null;
+  mediaUrl?: string | null;
+  mediaType?: string | null;
+  bytes?: number | null;
+  appointmentId?: number | null;
   createdAt: string;
   status?: 'sent' | 'delivered' | 'read';
+};
+
+export type PendingMediaMessage = {
+  id: string;
+  conversationId: number;
+  senderId: number;
+  fileName: string;
+  fileType: string;
+  previewUrl?: string;
+  status: 'uploading' | 'failed';
+  error?: string;
+  createdAt: string;
 };
 
 export const startDirectChat = async (facultyId: number) => {
@@ -47,7 +64,29 @@ export const getMessages = async (conversationId: number): Promise<Message[]> =>
   return response.data.data;
 };
 
-export const sendMessage = async (data: { conversationId: number, content: string }): Promise<Message> => {
-  const response = await api.post(`/chat/${data.conversationId}/messages`, { content: data.content });
+export const sendMessage = async (data: {
+  conversationId: number;
+  content?: string;
+  mediaUrl?: string;
+  mediaType?: string;
+  bytes?: number;
+}): Promise<Message> => {
+  // Client-side guard: reject empty messages before sending
+  const hasText = data.content && data.content.trim().length > 0;
+  const hasMedia = Boolean(data.mediaUrl);
+  if (!hasText && !hasMedia) {
+    throw new Error('Message must have content or a media attachment');
+  }
+
+  const response = await api.post(`/chat/${data.conversationId}/messages`, {
+    content: data.content,
+    mediaUrl: data.mediaUrl,
+    mediaType: data.mediaType,
+    bytes: data.bytes,
+  });
   return response.data.data;
+};
+
+export const markRead = async (conversationId: number): Promise<void> => {
+  await api.patch(`/chat/${conversationId}/read`);
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Conversation, Message } from '@/api/chat';
+import { Conversation, Message, PendingMediaMessage } from '@/api/chat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,19 +9,33 @@ import { Info, MoreVertical, Phone, Video } from 'lucide-react';
 interface ChatWindowProps {
   conversation: Conversation | null;
   messages: Message[];
+  pendingMedia?: PendingMediaMessage | null;
   currentUserId: number;
   isLoadingMessages: boolean;
   onSendMessage: (content: string) => void;
+  onSendMedia?: (file: File) => void;
+  onRetryMediaUpload?: () => void;
   isSendingMessage?: boolean;
+  isUploadingMedia?: boolean;
+  typingUser?: string;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   conversation,
   messages,
+  pendingMedia,
   currentUserId,
   isLoadingMessages,
   onSendMessage,
+  onSendMedia,
+  onRetryMediaUpload,
   isSendingMessage,
+  isUploadingMedia,
+  typingUser,
+  onTypingStart,
+  onTypingStop,
 }) => {
   if (!conversation) {
     return (
@@ -93,8 +107,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="flex-1 overflow-hidden relative bg-muted/10">
         <MessageList
           messages={messages}
+          pendingMedia={pendingMedia}
           currentUserId={currentUserId}
           isLoading={isLoadingMessages}
+          onRetryUpload={onRetryMediaUpload}
         />
       </div>
 
@@ -108,7 +124,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       ) : (
         <MessageInput
           onSendMessage={onSendMessage}
+          onSendMedia={onSendMedia}
           isLoading={isSendingMessage}
+          isUploading={isUploadingMedia}
+          typingUser={typingUser}
+          onTypingStart={onTypingStart}
+          onTypingStop={onTypingStop}
         />
       )}
     </div>

@@ -169,6 +169,16 @@
     animation: scale-in 0.3s ease-out forwards;
   }
 
+  /* Hide scrollbar for chat messages */
+  .hide-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
   @keyframes fade-in {
     from {
       opacity: 0;
