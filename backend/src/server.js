@@ -1,7 +1,8 @@
 const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./app');
-const { PORT, DATABASE_URL, JWT_SECRET, CORS_ORIGIN } = require('./config/env');
+const { PORT, DATABASE_URL, JWT_SECRET } = require('./config/env');
+const { corsOrigin } = require('./config/cors');
 const setupSocket = require('./sockets/notifications.socket');
 
 if (!DATABASE_URL) {
@@ -18,7 +19,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: CORS_ORIGIN,
+    origin: corsOrigin,
     credentials: true,
   },
 });

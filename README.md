@@ -80,6 +80,8 @@ PORT=5000
 CORS_ORIGIN=http://localhost:5173
 ```
 
+`CORS_ORIGIN` supports comma-separated values and optional wildcards (e.g. `https://profconnect-delta.vercel.app,https://profconnect-*.vercel.app`).
+
 **Frontend (.env):**
 ```
 VITE_API_URL=https://profconnect-43u9.onrender.com/api

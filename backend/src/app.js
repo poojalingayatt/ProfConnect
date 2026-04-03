@@ -3,7 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { errorHandler } = require('./middleware/errorHandler');
-const { CORS_ORIGIN } = require('./config/env');
+const { corsOrigin } = require('./config/cors');
 const authRoutes = require('./routes/auth.routes');
 const usersRoutes = require('./routes/users.routes');
 const facultyRoutes = require('./routes/faculty.routes');
@@ -41,7 +41,7 @@ app.use(limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: CORS_ORIGIN,
+  origin: corsOrigin,
   credentials: true,
 }));
 
