@@ -82,8 +82,8 @@ CORS_ORIGIN=http://localhost:5173
 
 **Frontend (.env):**
 ```
-VITE_API_URL=http://localhost:5000/api
-VITE_API_BASE=http://localhost:5000
+VITE_API_URL=https://profconnect-43u9.onrender.com/api
+VITE_API_BASE=https://profconnect-43u9.onrender.com
 ```
 
 ## Architecture

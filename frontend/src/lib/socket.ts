@@ -1,6 +1,14 @@
 import { io, Socket } from 'socket.io-client';
-import { API_BASE } from '@/lib/api';
 import { token } from '@/lib/token';
+
+const API_URL = import.meta.env.VITE_API_URL as string | undefined;
+const API_BASE = import.meta.env.VITE_API_BASE as string | undefined;
+
+const SOCKET_BASE = API_URL?.replace('/api', '') || API_BASE;
+
+if (!SOCKET_BASE) {
+  throw new Error('Missing VITE_API_URL or VITE_API_BASE for socket connection');
+}
 
 let socket: Socket | null = null;
 
@@ -12,7 +20,7 @@ export const initSocket = (authToken: string) => {
     socket.disconnect();
   }
 
-  socket = io(API_BASE, {
+  socket = io(SOCKET_BASE, {
     auth: { token: authToken },
     transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
     reconnection: true,

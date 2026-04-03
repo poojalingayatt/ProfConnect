@@ -3,7 +3,7 @@
 
 const axios = require('axios');
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://profconnect-43u9.onrender.com/api';
 
 // Replace with a valid JWT token from your login
 const JWT_TOKEN = 'YOUR_JWT_TOKEN_HERE';
