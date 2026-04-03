@@ -9,6 +9,8 @@ const ALLOWED_MEDIA_TYPES = new Set(['image', 'video', 'audio', 'pdf', 'document
 const userSockets = new Map();
 // userId(string) -> Set<socketId>
 const userSocketMap = new Map();
+// socketId -> userId(string) reverse map for O(1) disconnect handling
+const socketToUser = new Map();
 // userId -> peerUserId (active/ringing call pairing)
 const activeCallPeerByUser = new Map();
 
@@ -114,6 +116,7 @@ module.exports = (io) => {
     if (socketUserIdKey) {
       const sockets = getUserSocketSet(socketUserIdKey);
       sockets.add(socket.id);
+      socketToUser.set(socket.id, socketUserIdKey);
       console.log('🟢 Registered:', socketUserIdKey, '->', [...sockets]);
       console.log('📡 Full Map:', mapToDebugObject());
     }
@@ -215,7 +218,7 @@ module.exports = (io) => {
 
         try {
           const url = new URL(mediaUrl);
-          if (!url.hostname.endsWith('cloudinary.com')) {
+          if (url.hostname !== 'cloudinary.com' && !url.hostname.endsWith('.cloudinary.com')) {
             return callback({ ok: false, message: 'Invalid media URL' });
           }
         } catch {
@@ -277,11 +280,8 @@ module.exports = (io) => {
         const convId = Number(conversationId);
         if (!convId) return;
 
-        const conversation = await prisma.conversation.findUnique({ where: { id: convId } });
-        if (
-          !conversation ||
-          (conversation.studentId !== socket.user.id && conversation.facultyId !== socket.user.id)
-        ) return;
+        const rooms = socket.rooms;
+        if (!rooms.has(`conversation_${convId}`)) return;
 
         socket.to(`conversation_${convId}`).emit('user_stopped_typing', {
           conversationId: convId,
@@ -293,7 +293,7 @@ module.exports = (io) => {
     });
 
     // Call signaling
-    socket.on('call-user', ({ to, offer } = {}, callback = () => {}) => {
+    socket.on('call-user', ({ to, offer, type = 'audio' } = {}, callback = () => {}) => {
       try {
         const from = toUserId(socket.user?.id);
         const receiverId = toUserId(to);
@@ -326,7 +326,7 @@ module.exports = (io) => {
 
         setActiveCallPair(from, receiverId);
         receiverSockets.forEach((sockId) => {
-          io.to(sockId).emit('incoming-call', { offer, from });
+          io.to(sockId).emit('incoming-call', { offer, from, type });
         });
         callback({ ok: true });
       } catch {
@@ -395,6 +395,10 @@ module.exports = (io) => {
           return callback({ ok: false, message: 'Invalid end call payload' });
         }
 
+        if (activeCallPeerByUser.get(from) !== receiverId) {
+          return callback({ ok: false, message: 'No active call with this user' });
+        }
+
         clearActiveCallPair(from, receiverId);
         emitToUser(io, receiverId, 'call-ended', { from });
         callback({ ok: true });
@@ -407,15 +411,17 @@ module.exports = (io) => {
       const userId = toUserId(socket.user?.id);
       console.log('🔴 Disconnect:', socket.id);
 
-      for (const [mappedUserId, sockId] of userSocketMap.entries()) {
-        if (sockId.has(socket.id)) {
-          sockId.delete(socket.id);
-          if (sockId.size === 0) {
+      const mappedUserId = socketToUser.get(socket.id);
+      if (mappedUserId) {
+        const sockSet = userSocketMap.get(mappedUserId);
+        if (sockSet) {
+          sockSet.delete(socket.id);
+          if (sockSet.size === 0) {
             userSocketMap.delete(mappedUserId);
           }
-          console.log('❌ Updated map:', mappedUserId, [...(userSocketMap.get(mappedUserId) || [])]);
-          break;
         }
+        socketToUser.delete(socket.id);
+        console.log('❌ Updated map:', mappedUserId, [...(userSocketMap.get(mappedUserId) || [])]);
       }
       console.log('📡 Full Map:', mapToDebugObject());
 

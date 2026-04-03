@@ -10,6 +10,9 @@ export const useCall = ({ currentUserId, onError } = {}) => {
   const [remoteStream, setRemoteStream] = useState(() => createEmptyRemoteStream());
   const [peerConnection, setPeerConnection] = useState(null);
   const [callStatus, setCallStatus] = useState('idle');
+  const [callType, setCallType] = useState('audio');
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOff, setIsCameraOff] = useState(false);
   const [callerId, setCallerId] = useState(null);
   const [receiverId, setReceiverId] = useState(null);
 
@@ -35,6 +38,9 @@ export const useCall = ({ currentUserId, onError } = {}) => {
     setCallStatus('idle');
     setCallerId(null);
     setReceiverId(null);
+    setCallType('audio');
+    setIsMuted(false);
+    setIsCameraOff(false);
     pendingOfferRef.current = null;
     pendingIceRef.current = [];
 
@@ -59,16 +65,20 @@ export const useCall = ({ currentUserId, onError } = {}) => {
     });
   }, [stopStreamTracks]);
 
-  const ensureLocalStream = useCallback(async () => {
+  const ensureLocalStream = useCallback(async (options = { video: false }) => {
     if (localStream) return localStream;
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const constraints = options.video
+      ? { video: true, audio: true }
+      : { audio: true };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
     setLocalStream(stream);
     return stream;
   }, [localStream]);
 
   const ensurePeerConnection = useCallback(
-    async (targetUserId) => {
+    async (targetUserId, options = { video: false }) => {
       if (peerConnection) return peerConnection;
 
       const socket = getSocket();
@@ -77,7 +87,7 @@ export const useCall = ({ currentUserId, onError } = {}) => {
       }
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-      const outgoingStream = await ensureLocalStream();
+      const outgoingStream = await ensureLocalStream(options);
       const incomingStream = createEmptyRemoteStream();
       setRemoteStream(incomingStream);
 
@@ -128,7 +138,7 @@ export const useCall = ({ currentUserId, onError } = {}) => {
   }, []);
 
   const startCall = useCallback(
-    async (nextReceiverId) => {
+    async (nextReceiverId, options = { video: false }) => {
       const socket = getSocket();
       console.log('🔍 START CALL DEBUG');
       console.log('Socket:', socket);
@@ -161,9 +171,10 @@ export const useCall = ({ currentUserId, onError } = {}) => {
       try {
         setCallerId(currentUserId);
         setReceiverId(nextReceiverId);
+        setCallType(options.video ? 'video' : 'audio');
         setCallStatus('calling');
 
-        const pc = await ensurePeerConnection(nextReceiverId);
+        const pc = await ensurePeerConnection(nextReceiverId, options);
         console.log('✅ Creating offer...');
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -172,8 +183,9 @@ export const useCall = ({ currentUserId, onError } = {}) => {
 
         console.log('📤 Emitting call-user event', {
           to: receiverId,
+          type: options.video ? 'video' : 'audio',
         });
-        socket.emit('call-user', { to: receiverId, offer }, (ack) => {
+        socket.emit('call-user', { to: receiverId, offer, type: options.video ? 'video' : 'audio' }, (ack) => {
           if (ack?.ok) return;
           emitError(ack?.message || 'Unable to place call');
           clearCallState();
@@ -189,6 +201,30 @@ export const useCall = ({ currentUserId, onError } = {}) => {
     [callStatus, clearCallState, currentUserId, emitError, ensurePeerConnection]
   );
 
+  const toggleMute = useCallback(() => {
+    if (!localStream) return;
+    const audioTracks = localStream.getAudioTracks();
+    if (!audioTracks.length) return;
+
+    const shouldMute = audioTracks.some((track) => track.enabled);
+    audioTracks.forEach((track) => {
+      track.enabled = !shouldMute;
+    });
+    setIsMuted(shouldMute);
+  }, [localStream]);
+
+  const toggleCamera = useCallback(() => {
+    if (!localStream) return;
+    const videoTracks = localStream.getVideoTracks();
+    if (!videoTracks.length) return;
+
+    const shouldTurnOff = videoTracks.some((track) => track.enabled);
+    videoTracks.forEach((track) => {
+      track.enabled = !shouldTurnOff;
+    });
+    setIsCameraOff(shouldTurnOff);
+  }, [localStream]);
+
   const acceptCall = useCallback(async () => {
     if (!pendingOfferRef.current || !callerId || !currentUserId) return false;
     if (callStatus !== 'incoming') return false;
@@ -200,7 +236,7 @@ export const useCall = ({ currentUserId, onError } = {}) => {
         return false;
       }
 
-      const pc = await ensurePeerConnection(callerId);
+      const pc = await ensurePeerConnection(callerId, { video: callType === 'video' });
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOfferRef.current));
       await flushPendingIceCandidates(pc);
 
@@ -221,7 +257,7 @@ export const useCall = ({ currentUserId, onError } = {}) => {
       clearCallState();
       return false;
     }
-  }, [callStatus, callerId, clearCallState, currentUserId, emitError, ensurePeerConnection, flushPendingIceCandidates]);
+  }, [callStatus, callType, callerId, clearCallState, currentUserId, emitError, ensurePeerConnection, flushPendingIceCandidates]);
 
   const rejectCall = useCallback(() => {
     if (callStatus !== 'incoming' || !callerId) {
@@ -247,8 +283,10 @@ export const useCall = ({ currentUserId, onError } = {}) => {
     const socket = getSocket();
     if (!socket) return;
 
-    const handleIncomingCall = ({ offer, from }) => {
+    const handleIncomingCall = ({ offer, from, type = 'audio' }) => {
       if (!offer || !from) return;
+
+      setCallType(type === 'video' ? 'video' : 'audio');
 
       if (callStatus !== 'idle') {
         socket.emit('reject-call', { to: from });
@@ -332,11 +370,16 @@ export const useCall = ({ currentUserId, onError } = {}) => {
     remoteStream,
     peerConnection,
     callStatus,
+    callType,
+    isMuted,
+    isCameraOff,
     callerId,
     receiverId,
     startCall,
     acceptCall,
     rejectCall,
     endCall,
+    toggleMute,
+    toggleCamera,
   };
 };

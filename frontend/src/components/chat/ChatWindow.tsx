@@ -21,7 +21,7 @@ interface ChatWindowProps {
   onTypingStart?: () => void;
   onTypingStop?: () => void;
   onToggleContacts?: () => void;
-  onStartCall?: (targetUserId: number) => void;
+  onStartCall?: (targetUserId: number, options?: { video: boolean }) => void;
   isCallDisabled?: boolean;
 }
 
@@ -105,27 +105,38 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         {/* Optional Context Actions */}
         <div className="flex items-center gap-1">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground cursor-pointer"
             onClick={() => {
-              console.log('📞 CALL BUTTON CLICKED');
-              console.log('Selected User ID:', conversation?.user?.id);
+              console.log('📞 Audio Call');
               if (!conversation?.user?.id) {
                 console.warn('❌ No user selected');
                 return;
               }
-              onStartCall?.(conversation.user.id);
+              onStartCall?.(conversation.user.id, { video: false });
             }}
-            className={`relative z-50 inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer pointer-events-auto ${
-              !conversation?.user?.id || isCallDisabled ? 'opacity-50' : ''
-            }`}
-            aria-disabled={!conversation?.user?.id || isCallDisabled}
+            disabled={isCallDisabled}
             title={isCallDisabled ? 'Cannot start a call right now' : 'Start audio call'}
-            style={{ border: '2px solid red' }}
           >
             <Phone className="h-5 w-5" />
-          </button>
-          <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-muted-foreground">
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden sm:inline-flex text-muted-foreground cursor-pointer"
+            onClick={() => {
+              console.log('🎥 Video Call');
+              if (!conversation?.user?.id) {
+                console.warn('❌ No user selected');
+                return;
+              }
+              onStartCall?.(conversation.user.id, { video: true });
+            }}
+            disabled={isCallDisabled}
+            title={isCallDisabled ? 'Cannot start a call right now' : 'Start video call'}
+          >
             <Video className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" className="text-muted-foreground">

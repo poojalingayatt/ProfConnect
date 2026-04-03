@@ -1,11 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock, Users, CheckCircle, ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -23,13 +19,25 @@ import { getAppointments, acceptAppointment, rejectAppointment } from '@/api/app
 import { getConversations } from '@/api/chat';
 import { facultyApi } from '@/api/faculty';
 
+// Import new modular components
+import HeaderGreeting from '@/components/faculty-dashboard/HeaderGreeting';
+import ProfileCard from '@/components/faculty-dashboard/ProfileCard';
+import StatsCard from '@/components/faculty-dashboard/StatsCard';
+import PendingRequestsList from '@/components/faculty-dashboard/PendingRequestsList';
+import ScheduleTimeline from '@/components/faculty-dashboard/ScheduleTimeline';
+import AvailabilitySelector from '@/components/faculty-dashboard/AvailabilitySelector';
+import AnnouncementsSection from '@/components/faculty-dashboard/AnnouncementsSection';
+
 const DURATION_OPTIONS = [30, 45, 60, 90];
 
 const FacultyDashboard = () => {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // New UI state
+  const [isInOffice, setIsInOffice] = useState(true);
 
   // Accept modal state
   const [acceptModal, setAcceptModal] = useState<{ open: boolean; appointmentId: number | null }>({ open: false, appointmentId: null });
@@ -42,7 +50,7 @@ const FacultyDashboard = () => {
   const [rejectionReason, setRejectionReason] = useState('');
 
   // ── Fetch real appointments ──
-  const { data: allAppointments = [] } = useQuery({
+  const { data: allAppointments = [], isLoading: apptsLoading } = useQuery({
     queryKey: ['appointments'],
     queryFn: getAppointments,
     enabled: !!user,
@@ -61,14 +69,14 @@ const FacultyDashboard = () => {
     enabled: !!user,
   });
 
+  const isLoading = authLoading || apptsLoading;
+
   const now = new Date();
   const pendingAppointments = allAppointments.filter((a: any) => a.status === 'PENDING');
   const upcomingAppointments = allAppointments.filter(
     (a: any) => a.status === 'ACCEPTED' && new Date(a.date) >= now
   );
-  const completedCount = allAppointments.filter(
-    (a: any) => a.status === 'COMPLETED'
-  ).length;
+  
   const followerCount = Array.isArray(followers) ? followers.length : 0;
 
   const todayStr = now.toISOString().split('T')[0];
@@ -142,268 +150,102 @@ const FacultyDashboard = () => {
     rejectMutation.mutate({ id: rejectModal.appointmentId, reason: rejectionReason.trim() });
   };
 
-  const getStudentInfo = (appointment: any) => {
-    if (appointment.student?.name) {
-      return {
-        name: appointment.student.name,
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${appointment.student.name}`
-      };
-    }
-    return {
-      name: `Student ${appointment.studentId}`,
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Student${appointment.studentId}`
-    };
-  };
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="animate-pulse flex flex-col items-center">
+            <div className="h-12 w-12 bg-blue-200 rounded-full mb-4"></div>
+            <div className="text-slate-400 font-medium">Loading Dashboard...</div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const office = (user as any)?.office || "Office not set";
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 animate-fade-in">
-        {/* Welcome Header */}
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-            Welcome back, {user?.name?.split('.')[1]?.trim() || user?.name}! 👋
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage your appointments and availability.</p>
-        </div>
+      <div className="max-w-7xl mx-auto pb-12 animate-fade-in font-sans">
+        
+        {/* Header Section */}
+        <HeaderGreeting 
+          name={user?.name?.split('.')[1]?.trim() || user?.name || ''}
+          pendingRequests={pendingAppointments.length}
+          appointmentsCount={todayAppointments.length}
+          isInOffice={isInOffice}
+          onToggleOfficeOptions={setIsInOffice}
+        />
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="hover-lift cursor-pointer border-warning/50 bg-warning/5" onClick={() => navigate('/faculty/appointments')}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-2xl font-bold text-warning">{pendingAppointments.length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Main Grid Layout: Left 2 Cols, Right 1 Col */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-8">
+            
+            {/* Profile */}
+            <ProfileCard 
+              name={user?.name?.split('.')[1]?.trim() || user?.name || ''}
+              role={user?.role || 'FACULTY'}
+              department={user?.department || 'Department not set'}
+              office={office}
+              avatar={user?.avatar}
+              tags={['AI Ethics', 'Neural Networks', 'Machine Learning']}
+              onEditProfile={() => navigate('/faculty/settings')}
+            />
 
-          <Card className="hover-lift cursor-pointer" onClick={() => navigate('/faculty/appointments')}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Upcoming</p>
-                  <p className="text-2xl font-bold text-foreground">{upcomingAppointments.length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Pending Requests */}
+            <PendingRequestsList 
+              requests={pendingAppointments}
+              onAccept={handleOpenAcceptModal}
+              onReject={handleOpenRejectModal}
+              onViewAll={() => navigate('/faculty/appointments')}
+            />
 
-          <Card className="hover-lift cursor-pointer" onClick={() => navigate('/faculty/followers')}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Followers</p>
-                  <p className="text-2xl font-bold text-foreground">{followerCount}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Availability Management */}
+            <AvailabilitySelector 
+              onAddSlot={() => navigate('/faculty/availability')}
+              onBlockBreak={() => navigate('/faculty/availability')}
+            />
+            
+            {/* Announcements */}
+            <AnnouncementsSection />
 
-          <Card className="hover-lift">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold text-foreground">{completedCount}</p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Pending Requests */}
-          <div className="lg:col-span-2">
-            <Card className={pendingAppointments.length > 0 ? 'border-warning/50' : ''}>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  Pending Requests
-                  {pendingAppointments.length > 0 && (
-                    <Badge className="bg-warning text-warning-foreground">{pendingAppointments.length}</Badge>
-                  )}
-                </CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/faculty/appointments')}>
-                  View All
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {pendingAppointments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="h-12 w-12 mx-auto text-success/50 mb-3" />
-                    <p className="text-muted-foreground">No pending requests</p>
-                    <p className="text-sm text-muted-foreground mt-1">All caught up!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {pendingAppointments.slice(0, 4).map((appointment: any) => {
-                      const student = getStudentInfo(appointment);
-                      return (
-                        <div
-                          key={appointment.id}
-                          className="flex items-start gap-4 p-4 rounded-xl bg-warning/5 border border-warning/20"
-                        >
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={student.avatar} />
-                            <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground">{student.name}</p>
-                            <p className="text-sm text-muted-foreground truncate">{appointment.title}</p>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(appointment.date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                })}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {appointment.slot || appointment.time}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => handleOpenAcceptModal(appointment.id)}
-                            >
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenRejectModal(appointment.id)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Today's Schedule */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Today's Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {todayAppointments.length === 0 ? (
-                  <div className="text-center py-6">
-                    <Calendar className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">No appointments today</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {todayAppointments.map((appointment: any) => {
-                      const student = getStudentInfo(appointment);
-                      return (
-                        <div key={appointment.id} className="flex items-center gap-3 p-3 rounded-lg bg-accent/50">
-                          <div className="w-1 h-12 bg-primary rounded-full" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">
-                              {appointment.slot || appointment.time}
-                              {appointment.duration ? ` (${appointment.duration} min)` : ''}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{student.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{appointment.title}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Right Column */}
+          <div className="lg:col-span-1 space-y-6">
+            
+            {/* Stats Cards stack */}
+            <div className="flex flex-col gap-4">
+              <StatsCard 
+                title="Pending Requests" 
+                value={pendingAppointments.length} 
+                textColor="text-blue-600"
+                onClick={() => navigate('/faculty/appointments')}
+              />
+              <StatsCard 
+                title="Upcoming Today" 
+                value={todayAppointments.length} 
+                onClick={() => navigate('/faculty/appointments')}
+              />
+              <StatsCard 
+                title="Followers" 
+                value={followerCount} 
+                onClick={() => navigate('/faculty/followers')}
+              />
+            </div>
 
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Messages</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/faculty/chat')}>
-                  View All
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {conversations.length === 0 ? (
-                  <div className="py-6 text-center">
-                    <MessageCircle className="mx-auto mb-2 h-10 w-10 text-muted-foreground/50" />
-                    <p className="text-sm text-muted-foreground">No conversations yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {conversations.slice(0, 3).map((conversation) => (
-                      <button
-                        key={conversation.id}
-                        onClick={() => navigate(`/faculty/chat?conversationId=${conversation.id}`)}
-                        className="flex w-full items-center gap-3 rounded-lg bg-accent/40 p-3 text-left transition-colors hover:bg-accent/60"
-                      >
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={conversation.user.avatar} />
-                          <AvatarFallback>{conversation.user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{conversation.user.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {conversation.lastMessage || (conversation.isApproved ? 'Start chatting' : 'Waiting for approval')}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/faculty/availability')}>
-                  <Clock className="mr-2 h-4 w-4" />
-                  Manage Availability
-                </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/faculty/appointments')}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  View All Appointments
-                </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/faculty/settings')}>
-                  <Users className="mr-2 h-4 w-4" />
-                  Update Profile
-                </Button>
-              </CardContent>
-            </Card>
+            <ScheduleTimeline appointments={todayAppointments} />
           </div>
+
         </div>
       </div>
 
       {/* ═══ Accept Modal (Duration Selector) ═══ */}
       <Dialog open={acceptModal.open} onOpenChange={(open) => { if (!open) setAcceptModal({ open: false, appointmentId: null }); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Accept Appointment</DialogTitle>
             <DialogDescription>Select the meeting duration for this appointment.</DialogDescription>
@@ -416,9 +258,9 @@ const FacultyDashboard = () => {
                 <button
                   key={d}
                   onClick={() => { setSelectedDuration(d); setUseCustomDuration(false); }}
-                  className={`px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${!useCustomDuration && selectedDuration === d
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card hover:bg-accent border-border'
+                  className={`px-4 py-2 rounded-xl border transition-all duration-200 text-sm font-semibold ${!useCustomDuration && selectedDuration === d
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                     }`}
                 >
                   {d} min
@@ -426,9 +268,9 @@ const FacultyDashboard = () => {
               ))}
               <button
                 onClick={() => setUseCustomDuration(true)}
-                className={`px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${useCustomDuration
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card hover:bg-accent border-border'
+                className={`px-4 py-2 rounded-xl border transition-all duration-200 text-sm font-semibold ${useCustomDuration
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
                   }`}
               >
                 Custom
@@ -436,25 +278,26 @@ const FacultyDashboard = () => {
             </div>
 
             {useCustomDuration && (
-              <div>
+              <div className="animate-fade-in">
                 <Input
                   type="number"
                   min={15}
                   max={180}
+                  className="rounded-xl border-slate-200 focus-visible:ring-blue-600 mt-2"
                   placeholder="e.g., 75"
                   value={customDuration}
                   onChange={(e) => setCustomDuration(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground mt-1">15–180 minutes</p>
+                <p className="text-xs text-slate-500 font-medium mt-1.5 ml-1">15–180 minutes</p>
               </div>
             )}
 
-            <div className="flex gap-3 pt-4">
-              <Button variant="outline" onClick={() => setAcceptModal({ open: false, appointmentId: null })}>
+            <div className="flex gap-3 pt-6">
+              <Button variant="outline" className="rounded-xl font-semibold border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => setAcceptModal({ open: false, appointmentId: null })}>
                 Cancel
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md"
                 onClick={handleConfirmAccept}
                 disabled={acceptMutation.isPending}
               >
@@ -467,7 +310,7 @@ const FacultyDashboard = () => {
 
       {/* ═══ Reject Modal (Reason Textarea) ═══ */}
       <Dialog open={rejectModal.open} onOpenChange={(open) => { if (!open) { setRejectModal({ open: false, appointmentId: null }); setRejectionReason(''); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Reject Appointment</DialogTitle>
             <DialogDescription>Please provide a reason for rejecting this appointment.</DialogDescription>
@@ -475,9 +318,10 @@ const FacultyDashboard = () => {
 
           <div className="space-y-4 mt-4">
             <div>
-              <Label htmlFor="dashboard-rejection-reason">Reason</Label>
+              <Label htmlFor="dashboard-rejection-reason" className="font-semibold text-slate-700 mb-2 block">Reason</Label>
               <Textarea
                 id="dashboard-rejection-reason"
+                className="rounded-xl border-slate-200 focus-visible:ring-rose-500 resize-none"
                 placeholder="e.g., I am unavailable that day."
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
@@ -485,13 +329,12 @@ const FacultyDashboard = () => {
               />
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button variant="outline" onClick={() => { setRejectModal({ open: false, appointmentId: null }); setRejectionReason(''); }}>
+            <div className="flex gap-3 pt-6">
+              <Button variant="outline" className="rounded-xl font-semibold border-slate-200 text-slate-700 hover:bg-slate-50" onClick={() => { setRejectModal({ open: false, appointmentId: null }); setRejectionReason(''); }}>
                 Cancel
               </Button>
               <Button
-                className="flex-1"
-                variant="destructive"
+                className="flex-1 rounded-xl font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-md transition-all"
                 onClick={handleConfirmReject}
                 disabled={rejectMutation.isPending || !rejectionReason.trim()}
               >

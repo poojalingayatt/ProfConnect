@@ -165,7 +165,7 @@ const DashboardLayout = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 px-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="" alt={user?.name} />
+                    <AvatarImage src={user?.avatar || undefined} alt={user?.name} />
                     <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <span className="hidden md:block text-sm font-medium">{user?.name}</span>
