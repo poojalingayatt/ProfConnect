@@ -9,31 +9,31 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Pages
-import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import NotFound from "./pages/NotFound";
+import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
+import NotFound from "@/pages/NotFound";
 
 // Student Pages
-import StudentDashboard from "./pages/student/Dashboard";
-import FindFaculty from "./pages/student/FindFaculty";
-import StudentAppointments from "./pages/student/Appointments";
-import FollowedFaculty from "./pages/student/FollowedFaculty";
-import StudentSettings from "./pages/student/Settings";
-import StudentNotifications from "./pages/student/Notifications";
-import StudentChat from "./pages/student/Chat";
+import StudentDashboard from "@/pages/student/Dashboard";
+import FindFaculty from "@/pages/student/FindFaculty";
+import StudentAppointments from "@/pages/student/Appointments";
+import FollowedFaculty from "@/pages/student/FollowedFaculty";
+import StudentSettings from "@/pages/student/Settings";
+import StudentNotifications from "@/pages/student/Notifications";
+import StudentChat from "@/pages/student/Chat";
 
 // Faculty Pages
-import FacultyDashboard from "./pages/faculty/Dashboard";
-import FacultyAvailability from "./pages/faculty/Availability";
-import FacultyAppointments from "./pages/faculty/Appointments";
-import FacultyFollowers from "./pages/faculty/Followers";
-import FacultySettings from "./pages/faculty/Settings";
-import FacultyNotifications from "./pages/faculty/Notifications";
-import FacultyChat from "./pages/faculty/Chat";
+import FacultyDashboard from "@/pages/faculty/Dashboard";
+import FacultyAvailability from "@/pages/faculty/Availability";
+import FacultyAppointments from "@/pages/faculty/Appointments";
+import FacultyFollowers from "@/pages/faculty/Followers";
+import FacultySettings from "@/pages/faculty/Settings";
+import FacultyNotifications from "@/pages/faculty/Notifications";
+import FacultyChat from "@/pages/faculty/Chat";
 
 // Admin Pages
-import AdminDashboard from "./pages/admin/Dashboard";
+import AdminDashboard from "@/pages/admin/Dashboard";
 
 const queryClient = new QueryClient();
 

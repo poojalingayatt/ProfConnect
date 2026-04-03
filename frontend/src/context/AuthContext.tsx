@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { AuthResponse, RegisterInput, User, UserRole } from '@/types/auth';
 import { api, isAxiosError } from '@/lib/api';
 import { token } from '@/lib/token';
-import { initSocket, disconnectSocket } from '@/lib/socket';
+import { disconnectSocket, getOrCreateSocket, initSocket } from '@/lib/socket';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AuthContextType {
@@ -154,6 +154,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     disconnectSocket();
     queryClient.removeQueries({ queryKey: ['notifications'] });
   }, [queryClient]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('👤 Current User:', user);
+
+    const rawId = (user as User & { _id?: string | number })._id ?? user.id;
+    if (rawId === undefined || rawId === null || String(rawId).trim() === '') {
+      console.warn('❌ No user ID available for socket registration');
+      return;
+    }
+
+    const socket = getOrCreateSocket();
+    if (!socket) {
+      console.warn('❌ Socket unavailable for registration');
+      return;
+    }
+
+    const userId = String(rawId);
+    const registerUser = () => {
+      console.log('📤 Registering user:', userId);
+      socket.emit('register', userId);
+    };
+
+    if (socket.connected) {
+      registerUser();
+    }
+
+    socket.on('connect', registerUser);
+    return () => {
+      socket.off('connect', registerUser);
+    };
+  }, [user]);
 
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => prev ? { ...prev, ...updates } : prev);

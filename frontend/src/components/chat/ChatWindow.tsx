@@ -1,7 +1,7 @@
 import React from 'react';
 import { Conversation, Message, PendingMediaMessage } from '@/api/chat';
-import { MessageList } from './MessageList';
-import { MessageInput } from './MessageInput';
+import { MessageList } from '@/components/chat/MessageList';
+import { MessageInput } from '@/components/chat/MessageInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Info, Menu, MoreVertical, Phone, Video } from 'lucide-react';
@@ -21,6 +21,8 @@ interface ChatWindowProps {
   onTypingStart?: () => void;
   onTypingStop?: () => void;
   onToggleContacts?: () => void;
+  onStartCall?: (targetUserId: number) => void;
+  isCallDisabled?: boolean;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -38,6 +40,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onTypingStart,
   onTypingStop,
   onToggleContacts,
+  onStartCall,
+  isCallDisabled,
 }) => {
   if (!conversation) {
     return (
@@ -71,7 +75,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3 bg-card">
+      <div className="relative z-10 flex items-center justify-between border-b bg-card px-4 py-3">
         <div className="flex items-center gap-3">
           {onToggleContacts && (
             <Button
@@ -101,9 +105,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         {/* Optional Context Actions */}
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => {
+              console.log('📞 CALL BUTTON CLICKED');
+              console.log('Selected User ID:', conversation?.user?.id);
+              if (!conversation?.user?.id) {
+                console.warn('❌ No user selected');
+                return;
+              }
+              onStartCall?.(conversation.user.id);
+            }}
+            className={`relative z-50 inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer pointer-events-auto ${
+              !conversation?.user?.id || isCallDisabled ? 'opacity-50' : ''
+            }`}
+            aria-disabled={!conversation?.user?.id || isCallDisabled}
+            title={isCallDisabled ? 'Cannot start a call right now' : 'Start audio call'}
+            style={{ border: '2px solid red' }}
+          >
             <Phone className="h-5 w-5" />
-          </Button>
+          </button>
           <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-muted-foreground">
             <Video className="h-5 w-5" />
           </Button>

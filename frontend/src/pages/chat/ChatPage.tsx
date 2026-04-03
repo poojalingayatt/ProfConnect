@@ -10,6 +10,8 @@ import { AlertCircle } from 'lucide-react';
 import { getSocket } from '@/lib/socket';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadSignature, uploadFileToCloudinary } from '@/api/upload';
+import { useCall } from '@/hooks/useCall';
+import { Button } from '@/components/ui/button';
 
 // 50 MB — matches the backend multer limit
 const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
@@ -28,6 +30,7 @@ export const ChatPage: React.FC = () => {
   const [lastSelectedFile, setLastSelectedFile] = useState<File | null>(null);
   const [isContactsCollapsed, setIsContactsCollapsed] = useState(false);
   const [isMobileContactsOpen, setIsMobileContactsOpen] = useState(false);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Typing indicator state: name of who is typing (null if nobody)
   const [typingUser, setTypingUser] = useState<string | null>(null);
@@ -81,6 +84,39 @@ export const ChatPage: React.FC = () => {
   }, []);
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
+  const {
+    remoteStream,
+    callStatus,
+    callerId,
+    startCall,
+    acceptCall,
+    rejectCall,
+    endCall,
+  } = useCall({
+    currentUserId: user?.id,
+    onError: (message: string) => {
+      toast({ description: message, variant: 'destructive' });
+    },
+  });
+
+  useEffect(() => {
+    if (!remoteAudioRef.current || !remoteStream) return;
+    remoteAudioRef.current.srcObject = remoteStream;
+    remoteAudioRef.current.play().catch(() => {
+      // Browser autoplay policies can block without user interaction.
+    });
+  }, [remoteStream]);
+
+  const handleStartCall = useCallback(async (targetUserId: number) => {
+    if (!targetUserId) return;
+    const selectedUser = conversations.find((conversation) => conversation.user.id === targetUserId)?.user;
+    if (!selectedUser?.id) return;
+    const started = await startCall(selectedUser.id);
+    if (!started) return;
+  }, [conversations, startCall]);
+
+  const callerConversation =
+    callerId != null ? conversations.find((conversation) => conversation.user.id === callerId) : null;
 
   // ─── Socket: join room + receive messages + typing events ────────────────
   useEffect(() => {
@@ -369,8 +405,45 @@ export const ChatPage: React.FC = () => {
           onTypingStart={handleTypingStart}
           onTypingStop={handleTypingStop}
           onToggleContacts={handleToggleContacts}
+          onStartCall={handleStartCall}
+          isCallDisabled={
+            !activeConversation ||
+            callStatus !== 'idle'
+          }
         />
       </div>
+
+      <audio ref={remoteAudioRef} autoPlay playsInline />
+
+      {callStatus === 'incoming' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border bg-background p-5 shadow-xl">
+            <h3 className="text-lg font-semibold">Incoming call...</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {callerConversation?.user.name ?? 'Someone'} is calling you.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={rejectCall}>
+                Reject
+              </Button>
+              <Button onClick={() => void acceptCall()}>Accept</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {callStatus !== 'idle' && callStatus !== 'incoming' && (
+        <div className="absolute right-4 top-4 z-20 rounded-md border bg-background/95 px-4 py-3 shadow-md backdrop-blur">
+          <p className="text-sm font-medium">
+            {callStatus === 'connected' ? 'Connected' : 'Calling...'}
+          </p>
+          <div className="mt-2 flex justify-end">
+            <Button variant="destructive" size="sm" onClick={endCall}>
+              End Call
+            </Button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };
