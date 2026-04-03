@@ -10,6 +10,14 @@ interface HeaderGreetingProps {
   onToggleOfficeOptions: (checked: boolean) => void;
 }
 
+const getGreeting = (date: Date) => {
+  const hour = date.getHours();
+
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
 const HeaderGreeting: React.FC<HeaderGreetingProps> = ({
   name,
   pendingRequests,
@@ -17,11 +25,13 @@ const HeaderGreeting: React.FC<HeaderGreetingProps> = ({
   isInOffice,
   onToggleOfficeOptions,
 }) => {
+  const greeting = getGreeting(new Date());
+
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
       <div>
         <h1 className="font-display text-3xl font-bold text-slate-900 tracking-tight">
-          Good morning, Dr. {name}
+          {greeting}, Dr. {name}
         </h1>
         <p className="text-blue-600 mt-2 font-medium">
           You have {pendingRequests} pending {pendingRequests === 1 ? 'request' : 'requests'} and {appointmentsCount} upcoming {appointmentsCount === 1 ? 'appointment' : 'appointments'} today.
