@@ -199,7 +199,7 @@ exports.getConversations = async (user) => {
 
 // ─── Get Messages ─────────────────────────────────────────────────────────────
 
-exports.getMessages = async (user, conversationId) => {
+exports.getMessages = async (user, conversationId, { cursor, limit = 50 } = {}) => {
   const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
   if (!conversation) throw new AppError('Conversation not found', 404);
   if (conversation.studentId !== user.id && conversation.facultyId !== user.id) {
@@ -209,6 +209,8 @@ exports.getMessages = async (user, conversationId) => {
   return prisma.message.findMany({
     where: { conversationId },
     orderBy: { createdAt: 'asc' },
+    take: Number(limit),
+    ...(cursor ? { cursor: { id: Number(cursor) }, skip: 1 } : {}),
   });
 };
 

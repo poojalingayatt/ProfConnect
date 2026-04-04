@@ -12,6 +12,10 @@ export const queryKeys = {
   // User related queries
   userProfile: () => ['user', 'profile'] as const,
   userNotifications: () => ['user', 'notifications'] as const,
+
+  // Chat related queries
+  conversations: () => ['conversations'] as const,
+  messages: (id: number) => ['messages', id] as const,
   
   // Appointment related queries
   appointments: () => ['appointments'] as const,

@@ -89,11 +89,13 @@ exports.getUploadSignature = async (req, res) => {
     const mediaType = deriveMediaType(mimetype);
     const uploadResourceType = deriveUploadResourceType(mimetype);
 
-    console.log('[upload.getUploadSignature] Signature generated', {
-      mimetype,
-      mediaType,
-      uploadResourceType,
-    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[upload.getUploadSignature] Signature generated', {
+        mimetype,
+        mediaType,
+        uploadResourceType,
+      });
+    }
 
     return res.status(200).json({
       signature,
@@ -128,7 +130,9 @@ exports.getSignedMediaUrl = async (req, res) => {
     const { resourceType, type, publicIdWithFormat } = parseCloudinaryMediaUrl(mediaUrl);
     const expiresAt = Math.floor(Date.now() / 1000) + SIGNED_MEDIA_URL_TTL_SECONDS;
 
-    const signedUrl = cloudinary.utils.private_download_url(publicIdWithFormat, null, {
+    // Omit `format` (second arg) so Cloudinary derives it from the public_id extension.
+    // Passing `null` explicitly causes incorrect delivery URLs for some resource types (e.g. pdf).
+    const signedUrl = cloudinary.utils.private_download_url(publicIdWithFormat, undefined, {
       resource_type: resourceType,
       type,
       expires_at: expiresAt,

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,9 +36,10 @@ import FacultyChat from "@/pages/faculty/Chat";
 // Admin Pages
 import AdminDashboard from "@/pages/admin/Dashboard";
 
-const queryClient = new QueryClient();
+function App() {
+  const [queryClient] = useState(() => new QueryClient());
 
-const App = () => (
+  return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <NotificationsProvider>
@@ -225,6 +227,7 @@ const App = () => (
       </NotificationsProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+}
 
 export default App;

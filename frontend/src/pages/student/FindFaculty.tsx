@@ -198,7 +198,7 @@ const FindFaculty = () => {
     if (faculty.avatar) {
       // If avatar is a full URL, use it as-is; otherwise prepend base URL
       if (faculty.avatar.startsWith('http')) return faculty.avatar;
-      const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://profconnect-43u9.onrender.com';
+      const baseUrl = (import.meta.env.VITE_API_BASE as string | undefined) || import.meta.env.VITE_API_URL?.replace('/api', '');
       return `${baseUrl}${faculty.avatar}`;
     }
     return undefined;

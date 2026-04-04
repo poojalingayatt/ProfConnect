@@ -1,8 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { AuthResponse, RegisterInput, User, UserRole } from '@/types/auth';
 import { api, isAxiosError } from '@/lib/api';
 import { token } from '@/lib/token';
-import { disconnectSocket, getOrCreateSocket, initSocket } from '@/lib/socket';
+import { disconnectSocket, initSocket } from '@/lib/socket';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AuthContextType {
@@ -157,36 +157,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!user) return;
+    if (import.meta.env.DEV) console.log('👤 Current User:', user);
 
-    console.log('👤 Current User:', user);
+    const currentToken = token.get();
+    if (!currentToken) return;
 
-    const rawId = (user as User & { _id?: string | number })._id ?? user.id;
-    if (rawId === undefined || rawId === null || String(rawId).trim() === '') {
-      console.warn('❌ No user ID available for socket registration');
-      return;
-    }
-
-    const socket = getOrCreateSocket();
-    if (!socket) {
-      console.warn('❌ Socket unavailable for registration');
-      return;
-    }
-
-    const userId = String(rawId);
-    const registerUser = () => {
-      console.log('📤 Registering user:', userId);
-      socket.emit('register', userId);
-    };
-
-    if (socket.connected) {
-      registerUser();
-    }
-
-    socket.on('connect', registerUser);
+    const socket = initSocket(currentToken);
+    const handleConnect = () => socket.emit('register', { userId: user.id });
+    socket.on('connect', handleConnect);
+    if (socket.connected) handleConnect();
     return () => {
-      socket.off('connect', registerUser);
+      socket.off('connect', handleConnect);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const updateUser = useCallback((updates: Partial<User>) => {
     setUser(prev => prev ? { ...prev, ...updates } : prev);
@@ -215,3 +198,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+

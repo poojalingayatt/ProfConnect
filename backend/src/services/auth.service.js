@@ -9,6 +9,7 @@ exports.register = async (data) => {
 
   const existingUser = await prisma.user.findUnique({
     where: { email },
+    select: { id: true },
   });
 
   if (existingUser) {
@@ -25,6 +26,17 @@ exports.register = async (data) => {
       role,
       department,
     },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      department: true,
+      avatar: true,
+      phone: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   const accessToken = generateToken({
@@ -32,16 +44,24 @@ exports.register = async (data) => {
     role: user.role,
   });
 
-  delete user.password;
-  delete user.resetToken;
-  delete user.resetTokenExpiry;
-
   return { user, accessToken };
 };
 
 exports.login = async ({ email, password }) => {
   const user = await prisma.user.findUnique({
     where: { email },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      department: true,
+      avatar: true,
+      phone: true,
+      createdAt: true,
+      updatedAt: true,
+      password: true,
+    },
   });
 
   if (!user) {
@@ -59,32 +79,41 @@ exports.login = async ({ email, password }) => {
     role: user.role,
   });
 
-  delete user.password;
-  delete user.resetToken;
-  delete user.resetTokenExpiry;
+  const { password: _password, ...safeUser } = user;
 
-  return { user, accessToken };
+  return { user: safeUser, accessToken };
 };
 
 exports.getMe = async (userId) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: {
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      department: true,
+      avatar: true,
+      phone: true,
+      createdAt: true,
+      updatedAt: true,
       facultyProfile: {
-        include: {
-          specializations: true
-        }
-      }
-    }
+        select: {
+          userId: true,
+          bio: true,
+          officeLocation: true,
+          isOnline: true,
+          rating: true,
+          reviewCount: true,
+          specializations: true,
+        },
+      },
+    },
   });
 
   if (!user) {
     throw new AppError('User not found', 404);
   }
-
-  delete user.password;
-  delete user.resetToken;
-  delete user.resetTokenExpiry;
 
   return user;
 };
@@ -96,7 +125,7 @@ exports.forgotPassword = async (email) => {
 
   if (!user) {
     // Don't reveal if email exists
-    return { message: 'If email exists, reset link will be sent' };
+    return { message: 'If the email is registered, a reset link will be sent.' };
   }
 
   // Generate reset token
@@ -112,9 +141,8 @@ exports.forgotPassword = async (email) => {
     },
   });
 
-  // TODO: Send email with resetToken (not hashedToken)
-  // For now, return token for testing
-  return { resetToken, message: 'Reset token generated' };
+  // TODO: Deliver resetToken via email (not hashedToken); email delivery integration pending.
+  return { message: 'If the email is registered, a reset link will be sent.' };
 };
 
 exports.resetPassword = async (token, newPassword) => {

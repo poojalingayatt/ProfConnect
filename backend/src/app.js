@@ -46,14 +46,11 @@ app.use(cors({
 }));
 
 // Body parsers
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
-
 // Logging
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Health check route
 app.get('/health', (req, res) => { res.json({status: 'OK',timestamp: new Date().toISOString() });});

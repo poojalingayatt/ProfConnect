@@ -117,8 +117,10 @@ module.exports = (io) => {
       const sockets = getUserSocketSet(socketUserIdKey);
       sockets.add(socket.id);
       socketToUser.set(socket.id, socketUserIdKey);
-      console.log('🟢 Registered:', socketUserIdKey, '->', [...sockets]);
-      console.log('📡 Full Map:', mapToDebugObject());
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🟢 Registered:', socketUserIdKey, '->', [...sockets]);
+        console.log('📡 Full Map:', mapToDebugObject());
+      }
     }
 
     socket.on('register', (userId) => {
@@ -138,8 +140,21 @@ module.exports = (io) => {
       addSocketForUser(Number(id), socket.id);
       const sockets = getUserSocketSet(id);
       sockets.add(socket.id);
-      console.log('🟢 Registered:', id, '->', [...sockets]);
-      console.log('📡 Full Map:', mapToDebugObject());
+      const mappedUserId = socketToUser.get(socket.id);
+      if (mappedUserId && mappedUserId !== id) {
+        const mappedSocketSet = userSocketMap.get(mappedUserId);
+        if (mappedSocketSet) {
+          mappedSocketSet.delete(socket.id);
+          if (mappedSocketSet.size === 0) {
+            userSocketMap.delete(mappedUserId);
+          }
+        }
+      }
+      socketToUser.set(socket.id, id);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🟢 Registered:', id, '->', [...sockets]);
+        console.log('📡 Full Map:', mapToDebugObject());
+      }
     });
 
     // Join / Leave conversation room
@@ -257,7 +272,7 @@ module.exports = (io) => {
     });
 
     // Typing indicators
-    socket.on('typing_start', async ({ conversationId } = {}) => {
+    socket.on('typing_start', ({ conversationId } = {}) => {
       try {
         const convId = Number(conversationId);
         if (!convId) return;
@@ -275,7 +290,7 @@ module.exports = (io) => {
       }
     });
 
-    socket.on('typing_stop', async ({ conversationId } = {}) => {
+    socket.on('typing_stop', ({ conversationId } = {}) => {
       try {
         const convId = Number(conversationId);
         if (!convId) return;
@@ -315,7 +330,9 @@ module.exports = (io) => {
         }
         console.log('📞 Call attempt to:', receiverIdKey);
         console.log('Available sockets:', receiverSockets ? [...receiverSockets] : receiverSockets);
-        console.log('📡 Full Map:', mapToDebugObject());
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('📡 Full Map:', mapToDebugObject());
+        }
 
         if (!receiverSockets || receiverSockets.size === 0) {
           console.log('❌ User offline:', receiverIdKey);
@@ -423,7 +440,9 @@ module.exports = (io) => {
         socketToUser.delete(socket.id);
         console.log('❌ Updated map:', mappedUserId, [...(userSocketMap.get(mappedUserId) || [])]);
       }
-      console.log('📡 Full Map:', mapToDebugObject());
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('📡 Full Map:', mapToDebugObject());
+      }
 
       if (!userId) return;
 

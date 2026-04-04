@@ -12,6 +12,7 @@ import { getSocket } from '@/lib/socket';
 import { useToast } from '@/hooks/use-toast';
 import { getUploadSignature, uploadFileToCloudinary } from '@/api/upload';
 import { useCall } from '@/hooks/useCall';
+import { queryKeys } from '@/lib/queryKeys';
 
 // 50 MB — matches the backend multer limit
 const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
@@ -37,7 +38,7 @@ export const ChatPage: React.FC = () => {
   const typingClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const initialConvId = searchParams.get('conversationId')
-    ? parseInt(searchParams.get('conversationId')!)
+    ? parseInt(searchParams.get('conversationId')!, 10)
     : null;
   const [activeConversationId, setActiveConversationId] = useState<number | null>(initialConvId);
 
@@ -45,10 +46,10 @@ export const ChatPage: React.FC = () => {
     data: conversations = [],
     isLoading: isConversationsLoading,
     isError: isConversationsError,
-  } = useQuery({ queryKey: ['conversations'], queryFn: getConversations });
+  } = useQuery({ queryKey: queryKeys.conversations(), queryFn: getConversations });
 
   const { data: messages = [], isLoading: isMessagesLoading } = useQuery({
-    queryKey: ['messages', activeConversationId],
+    queryKey: queryKeys.messages(activeConversationId!),
     queryFn: () => getMessages(activeConversationId!),
     enabled: !!activeConversationId,
   });
@@ -72,7 +73,7 @@ export const ChatPage: React.FC = () => {
     setIsMobileContactsOpen(false);
     // Mark messages read when switching conversations
     markRead(id).catch(() => {/* best-effort */});
-    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
   };
 
   const handleToggleContacts = useCallback(() => {
@@ -146,15 +147,15 @@ export const ChatPage: React.FC = () => {
 
       // Message is for a different conversation — just refresh sidebar
       if (message.conversationId !== activeConversationId) {
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
         return;
       }
 
       queryClient.setQueryData<Message[]>(
-        ['messages', activeConversationId],
+        queryKeys.messages(activeConversationId),
         (old = []) => (old.some((m) => m.id === message.id) ? old : [...old, message])
       );
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
 
       // Mark read immediately if the active conversation gets a new message
       if (message.senderId !== user?.id) {
@@ -327,10 +328,10 @@ export const ChatPage: React.FC = () => {
       // Optimistically add the confirmed message
       if (ack.ok && ack.message) {
         queryClient.setQueryData<Message[]>(
-          ['messages', activeConversationId],
+          queryKeys.messages(activeConversationId),
           (old = []) => (old.some((m) => m.id === ack.message!.id) ? old : [...old, ack.message!])
         );
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
       }
 
       setPendingMedia(null);

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { getNotifications, markAsRead, markAllAsRead, type Notification } from '@/api/notifications';
-import { initSocket, getSocket, disconnectSocket } from '@/lib/socket';
+import { initSocket, getSocket } from '@/lib/socket';
 import { token } from '@/lib/token';
 
 interface NotificationsContextType {
@@ -69,7 +69,6 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
       if (socket) {
         socket.off('new_notification');
         socket.disconnect();
-        disconnectSocket();
       }
     };
   }, []);

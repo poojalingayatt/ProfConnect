@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getAppointments, acceptAppointment, rejectAppointment } from '@/api/appointments';
 import { getConversations } from '@/api/chat';
 import { facultyApi } from '@/api/faculty';
+import { queryKeys } from '@/lib/queryKeys';
 
 // Import new modular components
 import HeaderGreeting from '@/components/faculty-dashboard/HeaderGreeting';
@@ -64,7 +65,7 @@ const FacultyDashboard = () => {
   });
 
   const { data: conversations = [] } = useQuery({
-    queryKey: ['conversations'],
+    queryKey: queryKeys.conversations(),
     queryFn: getConversations,
     enabled: !!user,
   });

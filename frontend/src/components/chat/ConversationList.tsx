@@ -7,6 +7,7 @@ import { Check, X, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -29,7 +30,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   const approveMutation = useMutation({
     mutationFn: approveChat,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
       toast({ description: 'Chat request approved' });
     }
   });
@@ -37,7 +38,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   const rejectMutation = useMutation({
     mutationFn: rejectChat,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });
       toast({ description: 'Chat request rejected' });
     }
   });

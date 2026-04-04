@@ -16,7 +16,7 @@ const FacultyCard: React.FC<FacultyCardProps> = ({ faculty }) => {
   const getAvatarUrl = (f: Faculty) => {
     if (f.avatar) {
       if (f.avatar.startsWith('http')) return f.avatar;
-      const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://profconnect-43u9.onrender.com';
+      const baseUrl = (import.meta.env.VITE_API_BASE as string | undefined) || import.meta.env.VITE_API_URL?.replace('/api', '');
       return `${baseUrl}${f.avatar}`;
     }
     return undefined;
