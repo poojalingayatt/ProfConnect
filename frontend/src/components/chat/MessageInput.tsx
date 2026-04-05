@@ -103,7 +103,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     : 'Type a message…';
 
   return (
-    <div className="shrink-0 border-t bg-background p-4">
+    <div className="shrink-0 border-t bg-background p-2 md:p-4">
       {/* Typing indicator label */}
       {typingUser && !isUploading && (
         <p className="mb-1 px-2 text-xs text-muted-foreground animate-pulse">
@@ -113,7 +113,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
       <form
         onSubmit={handleSubmit}
-        className="flex items-center gap-2 rounded-full border bg-muted/50 p-1 px-4"
+        className="flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-2 md:px-4"
       >
         {/* Hidden file input — accepts everything the backend accepts */}
         <input
@@ -127,7 +127,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         {/* Attach button */}
         <button
           type="button"
-          className="text-muted-foreground hover:text-foreground p-2 rounded-full transition-colors disabled:opacity-40"
+          className="text-muted-foreground hover:text-foreground p-3 rounded-full transition-colors disabled:opacity-40"
           title={isUploading ? 'Uploading…' : 'Attach file'}
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading || isLoading}
@@ -144,13 +144,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-2"
+          className="h-11 flex-1 border-0 bg-transparent px-2 text-base focus-visible:ring-0 focus-visible:ring-offset-0 md:text-sm"
           disabled={isLoading || isUploading}
         />
 
         <button
           type="button"
-          className="text-muted-foreground hover:text-foreground p-2 rounded-full transition-colors hidden sm:block"
+          className="text-muted-foreground hover:text-foreground p-3 rounded-full transition-colors hidden sm:block"
           title="Emoji (coming soon)"
         >
           <Smile className="h-5 w-5" />
@@ -159,7 +159,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <Button
           type="submit"
           size="icon"
-          className="h-10 w-10 shrink-0 rounded-full"
+          className="h-11 w-11 shrink-0 rounded-full"
           disabled={!content.trim() || isLoading || isUploading}
         >
           <Send className="h-4 w-4" />

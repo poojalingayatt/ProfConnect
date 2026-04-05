@@ -73,9 +73,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+    <div className="chat-area bg-background">
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between border-b bg-card px-4 py-3">
+      <div className="chat-header relative z-10 flex shrink-0 items-center justify-between border-b bg-card px-3 py-3 md:px-4">
         <div className="flex items-center gap-3">
           {onToggleContacts && (
             <Button
@@ -161,21 +161,23 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Input Area */}
       {!conversation.isApproved ? (
-        <div className="border-t bg-muted/30 p-6 flex flex-col items-center justify-center text-center text-muted-foreground">
+        <div className="chat-input-shell border-t bg-muted/30 p-4 md:p-6 flex flex-col items-center justify-center text-center text-muted-foreground">
           <Info className="h-6 w-6 mb-2 opacity-50" />
           <p className="font-medium text-sm">Waiting for approval</p>
           <p className="text-xs mt-1 max-w-sm">This direct message request is pending faculty approval. You will be able to message them once they accept.</p>
         </div>
       ) : (
-        <MessageInput
-          onSendMessage={onSendMessage}
-          onSendMedia={onSendMedia}
-          isLoading={isSendingMessage}
-          isUploading={isUploadingMedia}
-          typingUser={typingUser}
-          onTypingStart={onTypingStart}
-          onTypingStop={onTypingStop}
-        />
+        <div className="chat-input-shell">
+          <MessageInput
+            onSendMessage={onSendMessage}
+            onSendMedia={onSendMedia}
+            isLoading={isSendingMessage}
+            isUploading={isUploadingMedia}
+            typingUser={typingUser}
+            onTypingStart={onTypingStart}
+            onTypingStop={onTypingStop}
+          />
+        </div>
       )}
     </div>
   );

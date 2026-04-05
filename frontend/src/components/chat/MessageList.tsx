@@ -148,10 +148,9 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <div 
-      className="relative flex h-full min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 hide-scrollbar"
+      className="chat-messages relative flex h-full min-h-0 flex-1 flex-col gap-4 p-4 pb-4 hide-scrollbar max-md:pb-28"
       ref={scrollRef}
       onScroll={handleScroll}
-      style={{ scrollBehavior: 'smooth' }}
     >
       {/* ── Confirmed messages ── */}
       {messages.map((message) => {

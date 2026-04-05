@@ -372,15 +372,15 @@ export const ChatPage: React.FC = () => {
   }
 
   return (
-    <Card className="relative flex h-full min-h-0 w-full overflow-hidden border">
+    <Card className="chat-page relative w-full border md:overflow-hidden">
       {/* Contacts panel */}
       <div
-        className={`absolute inset-y-0 left-0 z-20 w-[320px] max-w-[85vw] border-r bg-muted/10 transition-transform duration-300 md:static md:translate-x-0 ${
+        className={`chat-sidebar absolute inset-y-0 left-0 z-20 w-[85vw] max-w-[320px] border-r bg-muted/10 transition-transform duration-300 md:static md:max-w-none md:translate-x-0 ${
           isMobileContactsOpen ? 'translate-x-0' : '-translate-x-full'
         } ${
           isContactsCollapsed
             ? 'md:w-0 md:min-w-0 md:overflow-hidden md:border-r-0'
-            : 'md:w-[320px] md:min-w-[300px]'
+            : 'md:w-[280px] md:min-w-[250px] lg:w-[320px] lg:min-w-[300px]'
         }`}
       >
         <div className="h-full min-h-0 overflow-y-auto">
@@ -404,7 +404,7 @@ export const ChatPage: React.FC = () => {
       )}
 
       {/* Chat area */}
-      <div className={`${activeConversationId ? 'flex' : 'hidden md:flex'} min-w-0 min-h-0 flex-1 flex-col`}>
+      <div className={`${activeConversationId ? 'flex' : 'hidden md:flex'} chat-area`}>
         <ChatWindow
           conversation={activeConversation}
           messages={messages}
