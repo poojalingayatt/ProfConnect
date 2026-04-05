@@ -39,10 +39,31 @@ const limiter = rateLimit({
 // Apply globally
 app.use(limiter);
 
-// CORS configuration
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+];
+
 app.use(cors({
-  origin: corsOrigin,
-  credentials: true,
+  origin: function (origin, callback) {
+    // allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+
+    // allow localhost
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // allow ALL vercel deployments
+    if (origin.endsWith(".vercel.app")) {
+      return callback(null, true);
+    }
+
+    // block everything else
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true
 }));
 
 // Body parsers
