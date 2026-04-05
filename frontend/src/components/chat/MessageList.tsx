@@ -148,7 +148,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <div 
-      className="chat-messages relative flex h-full min-h-0 flex-1 flex-col gap-4 p-4 pb-4 hide-scrollbar max-md:pb-28"
+      className="chat-messages relative flex h-full min-h-0 flex-1 flex-col gap-4 hide-scrollbar"
       ref={scrollRef}
       onScroll={handleScroll}
     >

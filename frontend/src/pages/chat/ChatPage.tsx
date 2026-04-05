@@ -372,7 +372,7 @@ export const ChatPage: React.FC = () => {
   }
 
   return (
-    <Card className="chat-page relative w-full border md:overflow-hidden">
+    <Card className="chat-page relative h-full min-h-0 w-full border">
       {/* Contacts panel */}
       <div
         className={`chat-sidebar absolute inset-y-0 left-0 z-20 w-[85vw] max-w-[320px] border-r bg-muted/10 transition-transform duration-300 md:static md:max-w-none md:translate-x-0 ${
