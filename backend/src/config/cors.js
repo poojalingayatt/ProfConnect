@@ -2,6 +2,7 @@ const { CORS_ORIGIN, NODE_ENV } = require('./env');
 
 const localOrigins = [
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
   'http://localhost:8080',
 ];
 
@@ -40,6 +41,16 @@ const originMatchers = allowedOrigins.map((origin) => {
 const isAllowedOrigin = (requestOrigin) => {
   if (!requestOrigin) {
     return true;
+  }
+
+  // Allow dynamic Vercel preview and production deployments.
+  try {
+    const parsedOrigin = new URL(requestOrigin);
+    if (parsedOrigin.hostname.endsWith('.vercel.app')) {
+      return true;
+    }
+  } catch (error) {
+    // Ignore malformed origins and fall back to configured matchers.
   }
 
   return originMatchers.some((matcher) => matcher(requestOrigin));

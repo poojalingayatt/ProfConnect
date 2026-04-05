@@ -19,6 +19,17 @@ const uploadRoutes = require('./routes/upload.routes');
 
 const app = express();
 
+const corsOptions = {
+  origin: corsOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// CORS must run before all routes and most middleware to handle preflight correctly.
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
 // Security middleware
 app.use(helmet());
 
@@ -38,33 +49,6 @@ const limiter = rateLimit({
 
 // Apply globally
 app.use(limiter);
-
-
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173"
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like Postman)
-    if (!origin) return callback(null, true);
-
-    // allow localhost
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // allow ALL vercel deployments
-    if (origin.endsWith(".vercel.app")) {
-      return callback(null, true);
-    }
-
-    // block everything else
-    return callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true
-}));
 
 // Body parsers
 app.use(express.json({ limit: '10kb' }));
