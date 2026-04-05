@@ -25,8 +25,17 @@ exports.getMessages = catchAsync(async (req, res) => {
   const conversationId = parseInt(req.params.id);
   const { cursor, limit } = req.query;
   const messages = await chatService.getMessages(req.user, conversationId, { cursor, limit });
-  const nextCursor = messages.length === Number(limit || 50) ? messages[messages.length - 1].id : null;
-  res.status(200).json({ messages, nextCursor });
+  const parsedLimit = limit ? Number(limit) : null;
+  const safeLimit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
+  const nextCursor =
+    safeLimit && messages.length === safeLimit ? messages[messages.length - 1].id : null;
+
+  res.status(200).json({
+    status: 'success',
+    results: messages.length,
+    data: messages,
+    nextCursor,
+  });
 });
 
 exports.sendMessage = catchAsync(async (req, res) => {

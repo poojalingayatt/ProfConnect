@@ -4,15 +4,17 @@ import { token } from '@/lib/token';
 const baseURL = import.meta.env.VITE_API_URL as string | undefined;
 const apiBase = import.meta.env.VITE_API_BASE as string | undefined;
 
-if (!baseURL || !apiBase) {
-  // Fail fast. Both values must be provided for API and sockets.
+const resolvedBaseURL = baseURL || (apiBase ? `${apiBase.replace(/\/$/, '')}/api` : undefined);
+
+if (!resolvedBaseURL) {
   throw new Error('Missing VITE_API_URL or VITE_API_BASE');
 }
 
-export const API_BASE = apiBase;
+export const API_BASE = apiBase || resolvedBaseURL.replace(/\/api\/?$/, '');
 
 export const api = axios.create({
-  baseURL,
+  baseURL: resolvedBaseURL,
+  withCredentials: true,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

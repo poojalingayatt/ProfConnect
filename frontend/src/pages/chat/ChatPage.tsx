@@ -41,6 +41,7 @@ export const ChatPage: React.FC = () => {
     ? parseInt(searchParams.get('conversationId')!, 10)
     : null;
   const [activeConversationId, setActiveConversationId] = useState<number | null>(initialConvId);
+  const selectedConversationId = activeConversationId ?? -1;
 
   const {
     data: conversations = [],
@@ -49,8 +50,8 @@ export const ChatPage: React.FC = () => {
   } = useQuery({ queryKey: queryKeys.conversations(), queryFn: getConversations });
 
   const { data: messages = [], isLoading: isMessagesLoading } = useQuery({
-    queryKey: queryKeys.messages(activeConversationId!),
-    queryFn: () => getMessages(activeConversationId!),
+    queryKey: queryKeys.messages(selectedConversationId),
+    queryFn: () => getMessages(selectedConversationId),
     enabled: !!activeConversationId,
   });
 
@@ -71,6 +72,7 @@ export const ChatPage: React.FC = () => {
     setActiveConversationId(id);
     setSearchParams({ conversationId: id.toString() });
     setIsMobileContactsOpen(false);
+    queryClient.invalidateQueries({ queryKey: queryKeys.messages(id) });
     // Mark messages read when switching conversations
     markRead(id).catch(() => {/* best-effort */});
     queryClient.invalidateQueries({ queryKey: queryKeys.conversations() });

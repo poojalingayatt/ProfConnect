@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Message, PendingMediaMessage } from '@/api/chat';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Download, FileText, Loader2, RefreshCcw, VideoIcon, Music, ArrowDown, File, FileImage } from 'lucide-react';
+import { FileText, Loader2, RefreshCcw, VideoIcon, Music, ArrowDown, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getSignedMediaUrl } from '@/api/upload';
 
@@ -71,7 +71,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onRetryUpload,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastMessageRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   const openMediaInNewTab = async (
@@ -106,17 +106,15 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   // Scroll to bottom function
   const scrollToBottom = () => {
-    if (lastMessageRef.current) {
-      lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
 
   // Auto-scroll to bottom when new messages arrive or pending media changes
   useEffect(() => {
-    if (lastMessageRef.current && isNearBottomRef.current) {
-      lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (isNearBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  }, [messages.length, pendingMedia]);
+  }, [messages, pendingMedia]);
 
   // Initial scroll to bottom when loading completes
   useEffect(() => {
@@ -156,11 +154,10 @@ export const MessageList: React.FC<MessageListProps> = ({
       style={{ scrollBehavior: 'smooth' }}
     >
       {/* ── Confirmed messages ── */}
-      {messages.map((message, index) => {
+      {messages.map((message) => {
         const isMe = message.senderId === currentUserId;
         const hasText = Boolean(message.content?.trim());
         const hasMedia = Boolean(message.mediaUrl);
-        const isLastMessage = index === messages.length - 1;
         
         // Detect file type
         const fileType = hasMedia ? getFileType(message.mediaUrl!, message.mediaType) : null;
@@ -170,15 +167,14 @@ export const MessageList: React.FC<MessageListProps> = ({
           <div 
             key={message.id} 
             className={cn('flex w-full', isMe ? 'justify-end' : 'justify-start')}
-            ref={isLastMessage ? lastMessageRef : null}
           >
-            <div className={cn('max-w-[75%] flex flex-col gap-1', isMe ? 'items-end' : 'items-start')}>
+            <div className={cn('max-w-[60%] flex flex-col gap-2', isMe ? 'items-end' : 'items-start')}>
               <div
                 className={cn(
-                  'rounded-2xl px-4 py-2',
+                  'rounded-2xl px-3 py-2',
                   isMe
-                    ? 'bg-primary text-primary-foreground rounded-br-sm'
-                    : 'bg-muted text-foreground rounded-bl-sm'
+                    ? 'bg-[linear-gradient(135deg,hsl(238_75%_58%)_0%,hsl(258_75%_58%)_100%)] text-primary-foreground rounded-br-sm'
+                    : 'bg-[#e6f0ff] text-[#1a1a1a] rounded-bl-sm border border-[#d3e4ff]'
                 )}
               >
                 {hasText && (
@@ -207,7 +203,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                 {/* AUDIO */}
                 {hasMedia && fileType === 'audio' && (
                   <div className={cn('flex items-center gap-2 rounded-lg px-3 py-2', hasText ? 'mt-2' : '',
-                    isMe ? 'bg-primary-foreground/10' : 'bg-background')}>
+                    isMe ? 'bg-primary-foreground/10' : 'bg-[#dce9ff]')}>
                     <Music className="h-4 w-4 shrink-0" />
                     <audio src={message.mediaUrl!} controls className="h-8 w-full" />
                   </div>
@@ -219,7 +215,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity',
                       hasText ? 'mt-2' : '',
-                      isMe ? 'bg-primary-foreground/10' : 'bg-background'
+                      isMe ? 'bg-primary-foreground/10' : 'bg-[#dce9ff]'
                     )}
                     onClick={() => openMediaInNewTab(message.mediaUrl!, fileType)}
                   >
@@ -254,7 +250,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity',
                       hasText ? 'mt-2' : '',
-                      isMe ? 'bg-primary-foreground/10' : 'bg-background'
+                      isMe ? 'bg-primary-foreground/10' : 'bg-[#dce9ff]'
                     )}
                     onClick={() => openMediaInNewTab(message.mediaUrl!, fileType)}
                   >
@@ -289,7 +285,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity',
                       hasText ? 'mt-2' : '',
-                      isMe ? 'bg-primary-foreground/10' : 'bg-background'
+                      isMe ? 'bg-primary-foreground/10' : 'bg-[#dce9ff]'
                     )}
                     onClick={() => openMediaInNewTab(message.mediaUrl!, fileType)}
                   >
@@ -336,9 +332,9 @@ export const MessageList: React.FC<MessageListProps> = ({
 
       {/* ── Pending (uploading / failed) bubble — always at bottom ── */}
       {pendingMedia && (
-        <div className="flex w-full justify-end" ref={!messages.length ? lastMessageRef : null}>
-          <div className="max-w-[75%] flex flex-col items-end gap-1">
-            <div className="rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-primary-foreground">
+        <div className="flex w-full justify-end">
+          <div className="max-w-[60%] flex flex-col items-end gap-2">
+            <div className="rounded-2xl rounded-br-sm bg-[linear-gradient(135deg,hsl(238_75%_58%)_0%,hsl(258_75%_58%)_100%)] px-3 py-2 text-primary-foreground">
               {pendingMedia.fileType.startsWith('image/') && pendingMedia.previewUrl ? (
                 <img
                   src={pendingMedia.previewUrl}
@@ -391,6 +387,8 @@ export const MessageList: React.FC<MessageListProps> = ({
           </div>
         </div>
       )}
+
+      <div ref={bottomRef} />
 
       {/* Scroll to bottom button */}
       {showScrollButton && (

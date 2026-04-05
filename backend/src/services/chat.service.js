@@ -199,19 +199,30 @@ exports.getConversations = async (user) => {
 
 // ─── Get Messages ─────────────────────────────────────────────────────────────
 
-exports.getMessages = async (user, conversationId, { cursor, limit = 50 } = {}) => {
+exports.getMessages = async (user, conversationId, { cursor, limit } = {}) => {
   const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
   if (!conversation) throw new AppError('Conversation not found', 404);
   if (conversation.studentId !== user.id && conversation.facultyId !== user.id) {
     throw new AppError('Unauthorized', 403);
   }
 
-  return prisma.message.findMany({
+  const parsedLimit = limit ? Number(limit) : null;
+  const safeLimit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
+
+  const query = {
     where: { conversationId },
     orderBy: { createdAt: 'asc' },
-    take: Number(limit),
-    ...(cursor ? { cursor: { id: Number(cursor) }, skip: 1 } : {}),
-  });
+  };
+
+  if (safeLimit) {
+    query.take = safeLimit;
+    if (cursor) {
+      query.cursor = { id: Number(cursor) };
+      query.skip = 1;
+    }
+  }
+
+  return prisma.message.findMany(query);
 };
 
 // ─── Mark Conversation Read ───────────────────────────────────────────────────

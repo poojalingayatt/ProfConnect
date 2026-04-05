@@ -61,7 +61,9 @@ export const getConversations = async (): Promise<Conversation[]> => {
 
 export const getMessages = async (conversationId: number): Promise<Message[]> => {
   const response = await api.get(`/chat/${conversationId}/messages`);
-  return response.data.data;
+  if (Array.isArray(response.data?.data)) return response.data.data;
+  if (Array.isArray(response.data?.messages)) return response.data.messages;
+  return [];
 };
 
 export const sendMessage = async (data: {
