@@ -174,8 +174,7 @@
     z-index: 20;
     background: hsl(var(--background));
     padding-bottom: env(safe-area-inset-bottom);
-    border: 2px solid red;
-  }
+    }
 
   .glass-card {
     @apply bg-card/80 backdrop-blur-sm border border-border/50;
